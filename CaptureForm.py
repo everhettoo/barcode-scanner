@@ -1,12 +1,15 @@
 import cv2
-from PySide6.QtCore import QTimer, Qt
-from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtWidgets import QLabel, QApplication, QVBoxLayout, QWidget, QHBoxLayout, QPushButton, QRadioButton
+from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget, QHBoxLayout, QPushButton, QRadioButton
 
 
-class VideoPlayer(QWidget):
+class CaptureForm(QWidget):
     def __init__(self, video_source=0):  # 0 for default camera
         super().__init__()
+
+        # color = 'blue'
+        # self.setStyleSheet("border: 5px solid green;")
 
         self.video_capture = cv2.VideoCapture(video_source)
         if not self.video_capture.isOpened():
@@ -14,13 +17,13 @@ class VideoPlayer(QWidget):
 
         self.image_label = QLabel(self)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_label.setStyleSheet("border: 5px solid green;")
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.image_label)
 
         self.h_layout = QHBoxLayout()
         # self.h_layout.setContentsMargins(0,0,0,0)
         self.h_layout.setSpacing(50)
-
 
         self.auto_button = QRadioButton(self)
         self.auto_button.setChecked(True)
@@ -47,7 +50,7 @@ class VideoPlayer(QWidget):
 
         self.setWindowTitle("QR-Scanner")
         # self.setFixedSize(self.width(), self.height())
-        self.resize(1920,1080)
+        self.resize(1920, 1080)
         # self.setGeometry(100,200,100,400)
 
     def update_frame(self):
@@ -55,7 +58,7 @@ class VideoPlayer(QWidget):
         if ret:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             h, w, ch = frame.shape
-            image = QImage(frame.data, w, h, QImage.Format_RGB888)
+            image = QImage(frame.data, w, h, QImage.Format.Format_RGB888)  # pyside6: QImage.Format_RGB888
             pixmap = QPixmap.fromImage(image)
             self.image_label.setPixmap(pixmap)
             # self.image_label.resize(680,480)

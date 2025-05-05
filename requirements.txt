@@ -1,2 +1,3 @@
-pyside6
+pyqt6
 opencv-python
+pillow
