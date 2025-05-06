@@ -148,6 +148,7 @@ class ScannerWin(QWidget):
         # if not self.controller.auto_mode:
         ret = self.controller.on_manual_upload()
         print(f'upload-request:{ret}')
+        self.upload_button.setDisabled(ret)
         self.capture_button.setDisabled(ret)
         self.image_label.setPixmap(QPixmap())
 
