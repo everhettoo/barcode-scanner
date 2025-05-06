@@ -14,9 +14,9 @@ class Camera:
             raise IOError("Camera: Cannot open device!")
 
         self.timer = QTimer()
+        self.timer.timeout.connect(self.update_frame)
 
     def start(self):
-        self.timer.timeout.connect(self.update_frame)
         self.timer.start(self.interval)
 
     def update_frame(self):

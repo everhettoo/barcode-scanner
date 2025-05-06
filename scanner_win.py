@@ -2,7 +2,6 @@ from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QGuiApplication, QImage, QPixmap
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton
 
-from camera import Camera
 from job_controller import JobController
 
 
@@ -12,8 +11,10 @@ class ScannerWin(QWidget):
     WIN_WIDTH = 1200
     WIN_HEIGHT = 900
     HEIGHT_CORR = 0.05
-
     FRAME_INTERVAL = 30
+    BUTTON_STYLE = "font-size:16px;"
+
+    # BUTTON_STYLE = "border: 2px solid red; font-size:16px;"
 
     def __init__(self, device=0):  # 0 for default camera
         super().__init__()
@@ -42,20 +43,22 @@ class ScannerWin(QWidget):
         self.auto_button.setChecked(True)
         self.auto_button.setText('[Auto Capture]')
         self.auto_button.setFixedHeight(self.WIN_HEIGHT * self.HEIGHT_CORR)
-        self.auto_button.setStyleSheet("border: 2px solid red; font-size:16px;")
+        self.auto_button.setStyleSheet(self.BUTTON_STYLE)
         self.auto_button.clicked.connect(self.auto_toggle_click)
 
         self.capture_button = QPushButton(self)
         self.capture_button.setText('[Manual Capture]')
-        self.capture_button.setStyleSheet("border: 2px solid red; font-size:16px;")
+        self.capture_button.setStyleSheet(self.BUTTON_STYLE)
         self.capture_button.setFixedHeight(self.WIN_HEIGHT * self.HEIGHT_CORR)
         self.capture_button.clicked.connect(self.manual_capture_click)
+        self.capture_button.setDisabled(True)
 
         self.upload_button = QPushButton(self)
         self.upload_button.setText('[Upload]')
-        self.upload_button.setStyleSheet("border: 2px solid red; font-size:16px;")
+        self.upload_button.setStyleSheet(self.BUTTON_STYLE)
         self.upload_button.setFixedHeight(self.WIN_HEIGHT * self.HEIGHT_CORR)
         self.upload_button.clicked.connect(self.manual_upload_click)
+        self.upload_button.setDisabled(True)
 
         # Setup individual components (layouts)
         self.__add_screen_layout()
@@ -128,9 +131,15 @@ class ScannerWin(QWidget):
         val = self.sender()
 
         if val.isChecked():
-            print('auto toggle click - on')
+            ret = self.controller.on_auto_mode()
+            print(f'auto-request (ON) :{ret}')
+            self.capture_button.setDisabled(ret)
+            self.upload_button.setDisabled(ret)
         else:
-            print('auto toggle click')
+            ret = self.controller.off_auto_mode()
+            print(f'auto-request (OFF):{ret}')
+            self.capture_button.setEnabled(ret)
+            self.upload_button.setEnabled(ret)
 
     def manual_capture_click(self):
         print('manual capture')
