@@ -1,12 +1,7 @@
 # TODO: PyQT code (Don't delete!!!)
-import cv2
-from PyQt6 import uic
-from PyQt6.QtCore import QTimer, Qt
-from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtWidgets import QApplication
 
 from CamWin import CamWin
-from CaptureForm import CaptureForm
 
 # def button_clicked():
 #     ret, frame = video_capture.read()

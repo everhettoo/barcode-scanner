@@ -21,21 +21,21 @@ class CamWin(QWidget):
         self.right_v_layout = QVBoxLayout(self)
         self.right_v_layout.setContentsMargins(10, 10, 10, 10)
 
-        self.main_h_layout.addLayout(self.left_v_layout)
-        self.main_h_layout.addLayout(self.right_v_layout)
+        # self.main_h_layout.addLayout(self.left_v_layout)
+        # self.main_h_layout.addLayout(self.right_v_layout)
 
-        self.__add_screen()
-        self.__add_controls()
-        self.__add_workspace()
-        self.__add_trace()
-
-        self.video_capture = cv2.VideoCapture(video_source)
-        if not self.video_capture.isOpened():
-            raise IOError("Cannot open webcam")
-
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_frame)
-        self.timer.start(30)  # Update every 30 ms (adjust as needed)
+        # self.__add_screen()
+        # self.__add_controls()
+        # self.__add_workspace()
+        # self.__add_trace()
+        #
+        # self.video_capture = cv2.VideoCapture(video_source)
+        # if not self.video_capture.isOpened():
+        #     raise IOError("Cannot open webcam")
+        #
+        # self.timer = QTimer(self)
+        # self.timer.timeout.connect(self.update_frame)
+        # self.timer.start(30)  # Update every 30 ms (adjust as needed)
 
     def update_frame(self):
         ret, frame = self.video_capture.read()
