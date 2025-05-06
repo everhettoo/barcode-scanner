@@ -4,19 +4,20 @@ from PyQt6.QtCore import QTimer
 
 class Camera:
     def __init__(self, device, callback, interval):
-        self.video_capture = cv2.VideoCapture(device)
+        self.video_capture = None
+        self.device = device
         self.callback = callback
         self.interval = interval
         self.err_cnt = 0
         self.err_threshold = 5
 
-        if not self.video_capture.isOpened():
-            raise IOError("Camera: Cannot open device!")
-
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
 
     def start(self):
+        self.video_capture = cv2.VideoCapture(self.device)
+        if not self.video_capture.isOpened():
+            raise IOError("Camera: Cannot open device!")
         self.timer.start(self.interval)
 
     def update_frame(self):

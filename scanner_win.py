@@ -145,7 +145,11 @@ class ScannerWin(QWidget):
         print('manual capture')
 
     def manual_upload_click(self):
-        print('manual upload')
+        # if not self.controller.auto_mode:
+        ret = self.controller.on_manual_upload()
+        print(f'upload-request:{ret}')
+        self.capture_button.setDisabled(ret)
+        self.image_label.setPixmap(QPixmap())
 
     def frame_callback(self, frame):
         """
@@ -167,5 +171,6 @@ class ScannerWin(QWidget):
             return 1
 
     def closeEvent(self, event):
-        self.controller.stop()
+        # self.controller.stop()
+        self.controller.close()
         event.accept()
