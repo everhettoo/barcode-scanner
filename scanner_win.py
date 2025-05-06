@@ -49,7 +49,7 @@ class ScannerWin(QWidget):
         self.capture_button.setText('[Manual Capture]')
         self.capture_button.setStyleSheet("border: 2px solid red; font-size:16px;")
         self.capture_button.setFixedHeight(self.WIN_HEIGHT * self.HEIGHT_CORR)
-        self.capture_button.toggled.connect(self.manual_capture_click)
+        self.capture_button.clicked.connect(self.manual_capture_click)
 
         self.upload_button = QPushButton(self)
         self.upload_button.setText('[Upload]')
