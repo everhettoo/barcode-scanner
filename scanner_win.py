@@ -3,15 +3,19 @@ from PyQt6.QtCore import QPoint, Qt, QTimer
 from PyQt6.QtGui import QGuiApplication, QImage, QPixmap
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton
 
+from camera import Camera
+
 
 class ScannerWin(QWidget):
-    def __init__(self, video_source=0):  # 0 for default camera
+    def __init__(self, device=0):  # 0 for default camera
         super().__init__()
 
-        self.resize(1200, 900)
-        # self.setWindowModality(Qt.WindowModality.WindowModal)
+        # Set window attributes.
+        self.setFixedSize(1200, 900)
+        self.setWindowTitle('QR & Barcode Scanner')
+        self.__center()
 
-        # Setting the main layouts for sub-sections.
+        # Setting the main layouts for subsections.
         self.main_h_layout = QHBoxLayout(self)
         self.main_h_layout.setContentsMargins(10, 10, 10, 10)
 
@@ -30,17 +34,11 @@ class ScannerWin(QWidget):
         self.__add_workspace_layout()
         self.__add_trace_layout()
 
-        # Set window attributes.
-        self.setWindowTitle('QR & Barcode Scanner')
-        self.center()
+        # On error will throw exception.
+        self.camera = Camera(device, self.frame_callback, 30)
 
-        self.video_capture = cv2.VideoCapture(video_source)
-        if not self.video_capture.isOpened():
-            raise IOError("Cannot open webcam")
-
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_frame)
-        self.timer.start(30)  # Update every 30 ms (adjust as needed)
+        # Start the video feed.
+        self.camera.start()
 
     def __add_screen_layout(self):
         # Add the screen label to left_v_layout.
@@ -93,7 +91,7 @@ class ScannerWin(QWidget):
 
         self.right_v_layout.addWidget(self.work_trace)
 
-    def center(self):
+    def __center(self):
         # Get the geometry of the primary screen
         screen_geometry = QGuiApplication.primaryScreen().geometry()
 
@@ -110,16 +108,25 @@ class ScannerWin(QWidget):
         # Move the widget to the calculated position
         self.move(QPoint(x, y))
 
-    def update_frame(self):
-        ret, frame = self.video_capture.read()
-        if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    def frame_callback(self, frame):
+        """
+        This is a callback from Camera.
+        :param frame: Is a matrix returned from video feed.
+        :return: 0 or 1 to caller to handle consecutive error handling.
+        """
+        try:
             h, w, ch = frame.shape
             image = QImage(frame.data, w, h, QImage.Format.Format_RGB888)  # pyside6: QImage.Format_RGB888
             pixmap = QPixmap.fromImage(image)
             self.image_label.setPixmap(pixmap)
-            # self.image_label.resize(680,480)
+
+            # TODO: Spawn another thread for handling image processing to release the feed.
+
+            return 0
+        except Exception as e:
+            print(e)
+            return 1
 
     def closeEvent(self, event):
-        self.video_capture.release()
+        self.camera.close()
         event.accept()
