@@ -1,5 +1,4 @@
-import cv2
-from PyQt6.QtCore import QPoint, Qt, QTimer
+from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QGuiApplication, QImage, QPixmap
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton
 
@@ -7,26 +6,53 @@ from camera import Camera
 
 
 class ScannerWin(QWidget):
+    H_MARGIN = 10
+    V_MARGIN = 10
+    WIN_WIDTH = 1200
+    WIN_HEIGHT = 900
+    HEIGHT_CORR = 0.05
+
     def __init__(self, device=0):  # 0 for default camera
         super().__init__()
 
         # Set window attributes.
-        self.setFixedSize(1200, 900)
+        self.setFixedSize(self.WIN_WIDTH, self.WIN_HEIGHT)
         self.setWindowTitle('QR & Barcode Scanner')
         self.__center()
 
         # Setting the main layouts for subsections.
         self.main_h_layout = QHBoxLayout(self)
-        self.main_h_layout.setContentsMargins(10, 10, 10, 10)
+        self.main_h_layout.setContentsMargins(self.H_MARGIN, self.V_MARGIN, self.H_MARGIN, self.V_MARGIN)
 
         self.left_v_layout = QVBoxLayout()
-        self.left_v_layout.setContentsMargins(10, 10, 10, 10)
+        self.left_v_layout.setContentsMargins(self.H_MARGIN, self.V_MARGIN, self.H_MARGIN, self.V_MARGIN)
 
         self.right_v_layout = QVBoxLayout()
-        self.right_v_layout.setContentsMargins(10, 10, 10, 10)
+        # TODO: Top margin adjustment for right grid.
+        self.right_v_layout.setContentsMargins(self.H_MARGIN, self.V_MARGIN, self.H_MARGIN, self.V_MARGIN)
 
         self.main_h_layout.addLayout(self.left_v_layout)
         self.main_h_layout.addLayout(self.right_v_layout)
+
+        # Declare buttons and event handlers.
+        self.auto_button = QRadioButton(self)
+        self.auto_button.setChecked(True)
+        self.auto_button.setText('[Auto Capture]')
+        self.auto_button.setFixedHeight(self.WIN_HEIGHT * self.HEIGHT_CORR)
+        self.auto_button.setStyleSheet("border: 2px solid red; font-size:16px;")
+        self.auto_button.clicked.connect(self.auto_toggle_click)
+
+        self.capture_button = QPushButton(self)
+        self.capture_button.setText('[Manual Capture]')
+        self.capture_button.setStyleSheet("border: 2px solid red; font-size:16px;")
+        self.capture_button.setFixedHeight(self.WIN_HEIGHT * self.HEIGHT_CORR)
+        self.capture_button.toggled.connect(self.manual_capture_click)
+
+        self.upload_button = QPushButton(self)
+        self.upload_button.setText('[Upload]')
+        self.upload_button.setStyleSheet("border: 2px solid red; font-size:16px;")
+        self.upload_button.setFixedHeight(self.WIN_HEIGHT * self.HEIGHT_CORR)
+        self.upload_button.clicked.connect(self.manual_upload_click)
 
         # Setup individual components (layouts)
         self.__add_screen_layout()
@@ -44,31 +70,18 @@ class ScannerWin(QWidget):
         # Add the screen label to left_v_layout.
         self.image_label = QLabel(self)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setFixedWidth(750)
-        self.image_label.setFixedHeight(800)
+        self.image_label.setFixedWidth(self.WIN_WIDTH - 450)
+        self.image_label.setFixedHeight(self.WIN_HEIGHT - 100)
         self.image_label.setStyleSheet("border: 2px solid green;")
 
         self.left_v_layout.addWidget(self.image_label)
 
     def __add_control_layout(self):
+        # Add buttons to button_h_layout of left_v_layout
         # Horizontal layout for left_v_layout to arrange the buttons.
         self.button_h_layout = QHBoxLayout()
-        self.button_h_layout.setContentsMargins(10, 10, 10, 10)
+        # self.button_h_layout.setContentsMargins(self.H_MARGIN, self.V_MARGIN, self.H_MARGIN, self.V_MARGIN)
         self.left_v_layout.addLayout(self.button_h_layout)
-
-        # Add buttons to button_h_layout of left_v_layout
-        self.auto_button = QRadioButton(self)
-        self.auto_button.setChecked(True)
-        self.auto_button.setText('Auto')
-        self.auto_button.setStyleSheet("border: 2px solid red;")
-
-        self.capture_button = QPushButton(self)
-        self.capture_button.setText('Capture')
-        self.capture_button.setStyleSheet("border: 2px solid red;")
-
-        self.upload_button = QPushButton(self)
-        self.upload_button.setText('Upload')
-        self.upload_button.setStyleSheet("border: 2px solid red;")
 
         self.button_h_layout.addWidget(self.auto_button)
         self.button_h_layout.addWidget(self.capture_button)
@@ -79,7 +92,7 @@ class ScannerWin(QWidget):
         self.work_log.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.work_log.setStyleSheet("border: 2px solid blue;")
         self.work_log.setText("Work log")
-        self.work_log.setFixedHeight(500)
+        self.work_log.setFixedHeight(self.WIN_HEIGHT * 0.6)
 
         self.right_v_layout.addWidget(self.work_log)
 
@@ -107,6 +120,20 @@ class ScannerWin(QWidget):
 
         # Move the widget to the calculated position
         self.move(QPoint(x, y))
+
+    def auto_toggle_click(self):
+        val = self.sender()
+
+        if val.isChecked():
+            print('auto toggle click - on')
+        else:
+            print('auto toggle click')
+
+    def manual_capture_click(self):
+        print('manual capture')
+
+    def manual_upload_click(self):
+        print('manual upload')
 
     def frame_callback(self, frame):
         """
