@@ -3,6 +3,7 @@ from PyQt6.QtGui import QGuiApplication, QImage, QPixmap
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton
 
 from camera import Camera
+from job_controller import JobController
 
 
 class ScannerWin(QWidget):
@@ -11,6 +12,8 @@ class ScannerWin(QWidget):
     WIN_WIDTH = 1200
     WIN_HEIGHT = 900
     HEIGHT_CORR = 0.05
+
+    FRAME_INTERVAL = 30
 
     def __init__(self, device=0):  # 0 for default camera
         super().__init__()
@@ -61,10 +64,10 @@ class ScannerWin(QWidget):
         self.__add_trace_layout()
 
         # On error will throw exception.
-        self.camera = Camera(device, self.frame_callback, 30)
+        self.controller = JobController(device, self.frame_callback, self.FRAME_INTERVAL)
 
         # Start the video feed.
-        self.camera.start()
+        self.controller.start()
 
     def __add_screen_layout(self):
         # Add the screen label to left_v_layout.
@@ -155,5 +158,5 @@ class ScannerWin(QWidget):
             return 1
 
     def closeEvent(self, event):
-        self.camera.close()
+        self.controller.stop()
         event.accept()
