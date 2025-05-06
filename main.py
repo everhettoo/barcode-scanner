@@ -6,6 +6,6 @@ if __name__ == '__main__':
     app = QApplication([])
     # TODO: Unable to set icon.
     # app.setWindowIcon(QIcon('resources/qr-code.png'))
-    player = ScannerWin()
-    player.show()
+    scanner = ScannerWin()
+    scanner.show()
     app.exec()
