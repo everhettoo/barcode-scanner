@@ -1,3 +1,5 @@
+import cv2
+
 from camera import Camera
 
 
@@ -39,3 +41,15 @@ class JobController:
             return True
         else:
             return False
+
+    def load_image(self, file_path):
+        try:
+            # Use cv2.imread() to read the image file
+            img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
+            if img is None:
+                print(f"Error: Could not read image from {file_path}")
+                return None
+            return img
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None

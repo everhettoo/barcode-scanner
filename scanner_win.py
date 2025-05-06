@@ -1,6 +1,6 @@
-from PyQt6.QtCore import QPoint, Qt
+from PyQt6.QtCore import QPoint, Qt, pyqtSlot
 from PyQt6.QtGui import QGuiApplication, QImage, QPixmap
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton, QFileDialog
 
 from job_controller import JobController
 
@@ -44,20 +44,20 @@ class ScannerWin(QWidget):
         self.auto_button.setText('[Auto Capture]')
         self.auto_button.setFixedHeight(self.WIN_HEIGHT * self.HEIGHT_CORR)
         self.auto_button.setStyleSheet(self.BUTTON_STYLE)
-        self.auto_button.clicked.connect(self.auto_toggle_click)
+        self.auto_button.clicked.connect(self.auto_toggle_button_click)
 
         self.capture_button = QPushButton(self)
         self.capture_button.setText('[Manual Capture]')
         self.capture_button.setStyleSheet(self.BUTTON_STYLE)
         self.capture_button.setFixedHeight(self.WIN_HEIGHT * self.HEIGHT_CORR)
-        self.capture_button.clicked.connect(self.manual_capture_click)
+        self.capture_button.clicked.connect(self.manual_capture_button_click)
         self.capture_button.setDisabled(True)
 
         self.upload_button = QPushButton(self)
         self.upload_button.setText('[Upload]')
         self.upload_button.setStyleSheet(self.BUTTON_STYLE)
         self.upload_button.setFixedHeight(self.WIN_HEIGHT * self.HEIGHT_CORR)
-        self.upload_button.clicked.connect(self.manual_upload_click)
+        self.upload_button.clicked.connect(self.manual_upload_button_click)
         self.upload_button.setDisabled(True)
 
         # Setup individual components (layouts)
@@ -127,7 +127,7 @@ class ScannerWin(QWidget):
         # Move the widget to the calculated position
         self.move(QPoint(x, y))
 
-    def auto_toggle_click(self):
+    def auto_toggle_button_click(self):
         val = self.sender()
 
         if val.isChecked():
@@ -141,16 +141,38 @@ class ScannerWin(QWidget):
             self.capture_button.setEnabled(ret)
             self.upload_button.setEnabled(ret)
 
-    def manual_capture_click(self):
+    def manual_capture_button_click(self):
         print('manual capture')
 
-    def manual_upload_click(self):
+    def manual_upload_button_click(self):
         # if not self.controller.auto_mode:
         ret = self.controller.on_manual_upload()
         print(f'upload-request:{ret}')
-        self.upload_button.setDisabled(ret)
-        self.capture_button.setDisabled(ret)
-        self.image_label.setPixmap(QPixmap())
+        if ret:
+            # Set buttons for upload flow.
+            self.upload_button.setDisabled(ret)
+            self.capture_button.setDisabled(ret)
+            self.image_label.setPixmap(QPixmap())
+
+            # Set dialog to process uploaded file.
+            file_dialog = QFileDialog(self)
+            file_dialog.setWindowTitle("Open File")
+            file_dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+            file_dialog.setViewMode(QFileDialog.ViewMode.Detail)
+
+            if file_dialog.exec():
+                selected_files = file_dialog.selectedFiles()
+                print("Selected File:", selected_files[0])
+                # TODO: job controller to validate for processing.
+                img = self.controller.load_image(selected_files[0])
+                h, w, ch = img.shape
+                image = QImage(img.data, w, h, QImage.Format.Format_Grayscale16)  # pyside6: QImage.Format_RGB888
+                pixmap = QPixmap.fromImage(image)
+                self.image_label.setPixmap(pixmap)
+
+            # Close file dialog and reset upload button.
+            file_dialog.close()
+            self.upload_button.setEnabled(ret)
 
     def frame_callback(self, frame):
         """
