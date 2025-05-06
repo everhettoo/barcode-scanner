@@ -1,3 +1,2 @@
 pyqt6
 opencv-python
-pillow

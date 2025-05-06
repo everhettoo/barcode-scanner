@@ -4,54 +4,45 @@ from PyQt6.QtGui import QGuiApplication, QImage, QPixmap
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton
 
 
-class CamWin(QWidget):
+class ScannerWin(QWidget):
     def __init__(self, video_source=0):  # 0 for default camera
         super().__init__()
 
         self.resize(1200, 900)
         # self.setWindowModality(Qt.WindowModality.WindowModal)
 
-        # Setting the layouts.
+        # Setting the main layouts for sub-sections.
         self.main_h_layout = QHBoxLayout(self)
         self.main_h_layout.setContentsMargins(10, 10, 10, 10)
 
-        self.left_v_layout = QVBoxLayout(self)
+        self.left_v_layout = QVBoxLayout()
         self.left_v_layout.setContentsMargins(10, 10, 10, 10)
 
-        self.right_v_layout = QVBoxLayout(self)
+        self.right_v_layout = QVBoxLayout()
         self.right_v_layout.setContentsMargins(10, 10, 10, 10)
 
-        # self.main_h_layout.addLayout(self.left_v_layout)
-        # self.main_h_layout.addLayout(self.right_v_layout)
+        self.main_h_layout.addLayout(self.left_v_layout)
+        self.main_h_layout.addLayout(self.right_v_layout)
 
-        # self.__add_screen()
-        # self.__add_controls()
-        # self.__add_workspace()
-        # self.__add_trace()
-        #
-        # self.video_capture = cv2.VideoCapture(video_source)
-        # if not self.video_capture.isOpened():
-        #     raise IOError("Cannot open webcam")
-        #
-        # self.timer = QTimer(self)
-        # self.timer.timeout.connect(self.update_frame)
-        # self.timer.start(30)  # Update every 30 ms (adjust as needed)
+        # Setup individual components (layouts)
+        self.__add_screen_layout()
+        self.__add_control_layout()
+        self.__add_workspace_layout()
+        self.__add_trace_layout()
 
-    def update_frame(self):
-        ret, frame = self.video_capture.read()
-        if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            h, w, ch = frame.shape
-            image = QImage(frame.data, w, h, QImage.Format.Format_RGB888)  # pyside6: QImage.Format_RGB888
-            pixmap = QPixmap.fromImage(image)
-            self.image_label.setPixmap(pixmap)
-            # self.image_label.resize(680,480)
+        # Set window attributes.
+        self.setWindowTitle('QR & Barcode Scanner')
+        self.center()
 
-    def closeEvent(self, event):
-        self.video_capture.release()
-        event.accept()
+        self.video_capture = cv2.VideoCapture(video_source)
+        if not self.video_capture.isOpened():
+            raise IOError("Cannot open webcam")
 
-    def __add_screen(self):
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_frame)
+        self.timer.start(30)  # Update every 30 ms (adjust as needed)
+
+    def __add_screen_layout(self):
         # Add the screen label to left_v_layout.
         self.image_label = QLabel(self)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -61,9 +52,9 @@ class CamWin(QWidget):
 
         self.left_v_layout.addWidget(self.image_label)
 
-    def __add_controls(self):
+    def __add_control_layout(self):
         # Horizontal layout for left_v_layout to arrange the buttons.
-        self.button_h_layout = QHBoxLayout(self)
+        self.button_h_layout = QHBoxLayout()
         self.button_h_layout.setContentsMargins(10, 10, 10, 10)
         self.left_v_layout.addLayout(self.button_h_layout)
 
@@ -85,7 +76,7 @@ class CamWin(QWidget):
         self.button_h_layout.addWidget(self.capture_button)
         self.button_h_layout.addWidget(self.upload_button)
 
-    def __add_workspace(self):
+    def __add_workspace_layout(self):
         self.work_log = QLabel(self)
         self.work_log.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.work_log.setStyleSheet("border: 2px solid blue;")
@@ -94,17 +85,13 @@ class CamWin(QWidget):
 
         self.right_v_layout.addWidget(self.work_log)
 
-    def __add_trace(self):
+    def __add_trace_layout(self):
         self.work_trace = QLabel(self)
         self.work_trace.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.work_trace.setStyleSheet("border: 2px solid yellow;")
         self.work_trace.setText("Work trace")
 
         self.right_v_layout.addWidget(self.work_trace)
-
-        self.setWindowTitle('Scanner')
-
-        self.center()
 
     def center(self):
         # Get the geometry of the primary screen
@@ -122,3 +109,17 @@ class CamWin(QWidget):
 
         # Move the widget to the calculated position
         self.move(QPoint(x, y))
+
+    def update_frame(self):
+        ret, frame = self.video_capture.read()
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            h, w, ch = frame.shape
+            image = QImage(frame.data, w, h, QImage.Format.Format_RGB888)  # pyside6: QImage.Format_RGB888
+            pixmap = QPixmap.fromImage(image)
+            self.image_label.setPixmap(pixmap)
+            # self.image_label.resize(680,480)
+
+    def closeEvent(self, event):
+        self.video_capture.release()
+        event.accept()
