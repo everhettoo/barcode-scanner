@@ -38,5 +38,6 @@ class Camera:
             return 1
 
     def close(self):
-        self.video_capture.release()
+        if self.video_capture is not None:
+            self.video_capture.release()
         self.timer.stop()

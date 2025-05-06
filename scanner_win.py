@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QPoint, Qt, pyqtSlot
+from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QGuiApplication, QImage, QPixmap
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton, QFileDialog
 
@@ -13,6 +13,8 @@ class ScannerWin(QWidget):
     HEIGHT_CORR = 0.05
     FRAME_INTERVAL = 30
     BUTTON_STYLE = "font-size:16px;"
+
+    FILE_UPLOAD_TEST = False
 
     # BUTTON_STYLE = "border: 2px solid red; font-size:16px;"
 
@@ -69,8 +71,18 @@ class ScannerWin(QWidget):
         # On error will throw exception.
         self.controller = JobController(device, self.frame_callback, self.FRAME_INTERVAL)
 
-        # Start the video feed.
-        self.controller.start()
+        # For manual file upload testing the following are added.
+        if self.FILE_UPLOAD_TEST:
+
+            ret = self.controller.off_auto_mode()
+            print(f'auto-request (OFF):{ret}')
+            self.capture_button.setEnabled(ret)
+            self.upload_button.setEnabled(ret)
+            self.auto_button.setDisabled(ret)
+            self.controller.close()
+        else:
+            # Start the video feed.
+            self.controller.start()
 
     def __add_screen_layout(self):
         # Add the screen label to left_v_layout.
