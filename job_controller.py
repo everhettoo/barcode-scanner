@@ -8,6 +8,7 @@ class JobController:
         self.camera = Camera(device, frame_callback, interval)
         # The default mode when application starts.
         self.auto_mode = True
+        self.upload_mode = False
 
     def start(self):
         self.camera.start()
@@ -22,6 +23,7 @@ class JobController:
     def on_auto_mode(self):
         if not self.auto_mode:
             self.auto_mode = True
+            self.upload_mode = False
             self.reset()
             return True
         else:
@@ -36,7 +38,8 @@ class JobController:
             return False
 
     def on_manual_upload(self):
-        if not self.auto_mode:
+        if not self.auto_mode or not self.upload_mode:
+            self.upload_mode = True
             self.close()
             return True
         else:
@@ -44,12 +47,12 @@ class JobController:
 
     def load_image(self, file_path):
         try:
-            # Use cv2.imread() to read the image file
+            # IMREAD_UNCHANGED - loads alpha channel.
             img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
             if img is None:
-                print(f"Error: Could not read image from {file_path}")
+                print(f"Error: Couldn't read image from {file_path}!")
                 return None
             return img
         except Exception as e:
-            print(f"An error occurred: {e}")
+            print(f"Error: {e}")
             return None

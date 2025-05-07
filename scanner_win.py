@@ -157,6 +157,12 @@ class ScannerWin(QWidget):
         print('manual capture')
 
     def manual_upload_button_click(self):
+        """
+        This event click allows user to manually upload a image file for processing. Once processing is completed,
+        the event doesn't need to be reset, the upload-mode continues until user clicks auto-mode for auto-scan or
+        manual capture.
+        :return:
+        """
         # if not self.controller.auto_mode:
         ret = self.controller.on_manual_upload()
         print(f'upload-request:{ret}')
