@@ -16,7 +16,7 @@ class ScannerWin(QWidget):
     BUTTON_STYLE = "font-size:16px;"
     # BUTTON_STYLE = "border: 2px solid red; font-size:16px;"
 
-    FILE_UPLOAD_TEST = False
+    FILE_UPLOAD_TEST = True
 
     def __init__(self, device=0):  # 0 for default camera
         super().__init__()
