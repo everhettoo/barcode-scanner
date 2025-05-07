@@ -12,6 +12,7 @@ class JobController:
         self.upload_mode = False
         self.trace_callback = trace_callback
         self.trace = TraceHandler(self.trace_callback)
+        self.trace_callback('Trace')
 
     def start(self):
         self.camera.start()
@@ -48,8 +49,10 @@ class JobController:
         if not self.auto_mode or not self.upload_mode:
             self.upload_mode = True
             self.close()
+            self.trace.write(f'Upload-request: Accepted')
             return True
         else:
+            self.trace.write(f'Upload-request: Denied')
             return False
 
     def load_image(self, file_path):
@@ -57,9 +60,9 @@ class JobController:
             # IMREAD_UNCHANGED - loads alpha channel.
             img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
             if img is None:
-                print(f"Error: Couldn't read image from {file_path}!")
+                self.trace.write(f"Error: Couldn't read image from {file_path}!")
                 return None
             return img
         except Exception as e:
-            print(f"Error: {e}")
+            self.trace.write(f"Error: {e}")
             return None

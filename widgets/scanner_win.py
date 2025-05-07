@@ -1,53 +1,9 @@
 from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QGuiApplication, QImage, QPixmap
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton, QFileDialog, \
-    QScrollArea
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton, QFileDialog
 
 from job_controller import JobController
-
-
-class ScrollLabel(QScrollArea):
-    """
-    Scroll widget for QScrollArea for displaying traces.
-    Code was taken and modified from: https://www.geeksforgeeks.org/pyqt5-scrollable-label/
-    """
-    LABEL_STYLE = "font-size:16px;"
-
-    # LABEL_STYLE = "border: 2px solid yellow; font-size:16px;"
-
-    def __init__(self, *args, **kwargs):
-        QScrollArea.__init__(self, *args, **kwargs)
-
-        # making widget resizable
-        self.setWidgetResizable(True)
-
-        # making qwidget object
-        content = QWidget(self)
-        self.setWidget(content)
-
-        # vertical box layout
-        lay = QVBoxLayout(content)
-
-        # creating label
-        self.label = QLabel(content)
-
-        # setting alignment to the text
-        self.label.setStyleSheet(self.LABEL_STYLE)
-        self.label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-
-        # making label multi-line
-        self.label.setWordWrap(True)
-
-        # self.setWidget(self.label)
-        # adding label to the layout
-        lay.addWidget(self.label)
-
-    # the setText method
-    def setText(self, text):
-        self.label.setText(text)
-
-    def text(self):
-        return self.label.text()
+from widgets.scrolllable import ScrollLabel
 
 
 class ScannerWin(QWidget):
@@ -108,7 +64,6 @@ class ScannerWin(QWidget):
 
         # Declare Scrollable labels
         self.work_trace = ScrollLabel(self)
-        self.work_trace.setText('Trace...')
 
         # Setup individual components (layouts)
         self.__add_screen_layout()
@@ -121,9 +76,7 @@ class ScannerWin(QWidget):
 
         # For manual file upload testing the following are added.
         if self.FILE_UPLOAD_TEST:
-
             ret = self.controller.off_auto_mode()
-            print(f'auto-request (OFF):{ret}')
             self.capture_button.setEnabled(ret)
             self.upload_button.setEnabled(ret)
             self.auto_button.setDisabled(ret)
@@ -187,12 +140,10 @@ class ScannerWin(QWidget):
 
         if val.isChecked():
             ret = self.controller.on_auto_mode()
-            # print(f'auto-request (ON) :{ret}')
             self.capture_button.setDisabled(ret)
             self.upload_button.setDisabled(ret)
         else:
             ret = self.controller.off_auto_mode()
-            # print(f'auto-request (OFF):{ret}')
             self.capture_button.setEnabled(ret)
             self.upload_button.setEnabled(ret)
 
@@ -208,7 +159,7 @@ class ScannerWin(QWidget):
         """
         # if not self.controller.auto_mode:
         ret = self.controller.on_manual_upload()
-        print(f'upload-request:{ret}')
+
         if ret:
             # Set buttons for upload flow.
             self.upload_button.setDisabled(ret)
@@ -226,10 +177,7 @@ class ScannerWin(QWidget):
                 print("Selected File:", selected_files[0])
                 # TODO: job controller to validate for processing.
                 img = self.controller.load_image(selected_files[0])
-                h, w, ch = img.shape
-                image = QImage(img.data, w, h, QImage.Format.Format_Grayscale16)  # pyside6: QImage.Format_RGB888
-                pixmap = QPixmap.fromImage(image)
-                self.image_label.setPixmap(pixmap)
+                self.set_screen(img, QImage.Format.Format_Grayscale16)
 
             # Close file dialog and reset upload button.
             file_dialog.close()
@@ -242,11 +190,7 @@ class ScannerWin(QWidget):
         :return: 0 or 1 to caller to handle consecutive error handling.
         """
         try:
-            h, w, ch = frame.shape
-            image = QImage(frame.data, w, h, QImage.Format.Format_RGB888)  # pyside6: QImage.Format_RGB888
-            pixmap = QPixmap.fromImage(image)
-            self.image_label.setPixmap(pixmap)
-
+            self.set_screen(frame, QImage.Format.Format_RGB888)
             # TODO: Spawn another thread for handling image processing to release the feed.
 
             return 0
@@ -257,7 +201,18 @@ class ScannerWin(QWidget):
     def trace_callback(self, msg):
         self.work_trace.setText(self.work_trace.text() + '\n' + msg)
 
+    def set_screen(self, img, image_format=None):
+        """
+        Single method to display images on the application.
+        :param img: cv2.Mar (ndarray)
+        :param image_format: cv2 format
+        :return: None
+        """
+        h, w, ch = img.shape
+        image = QImage(img.data, w, h, image_format)  # pyside6: QImage.Format_RGB888
+        pixmap = QPixmap.fromImage(image)
+        self.image_label.setPixmap(pixmap)
+
     def closeEvent(self, event):
-        # self.controller.stop()
         self.controller.close()
         event.accept()
