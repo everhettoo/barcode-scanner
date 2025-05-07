@@ -17,7 +17,7 @@ class ScannerWin(QWidget):
     BUTTON_STYLE = "font-size:16px;"
     # BUTTON_STYLE = "border: 2px solid red; font-size:16px;"
 
-    FILE_UPLOAD_TEST = False
+    BASIC_MODE = True
 
     def __init__(self, device=0):  # 0 for default camera
         super().__init__()
@@ -73,10 +73,11 @@ class ScannerWin(QWidget):
         self.__add_trace_layout()
 
         # On error will throw exception.
-        self.controller = JobController(device, self.frame_callback, self.trace_callback, self.FRAME_INTERVAL)
+        self.controller = JobController(device, self.frame_callback, self.trace_callback, self.process_callback,
+                                        self.FRAME_INTERVAL)
 
         # For manual file upload testing the following are added.
-        if self.FILE_UPLOAD_TEST:
+        if self.BASIC_MODE:
             ret = self.controller.off_auto_mode()
             self.capture_button.setEnabled(ret)
             self.upload_button.setEnabled(ret)
@@ -158,8 +159,8 @@ class ScannerWin(QWidget):
         manual capture.
         :return:
         """
-        # if not self.controller.auto_mode:
         ret = self.controller.on_manual_upload()
+        img_to_process = None
 
         if ret:
             # Set buttons for upload flow.
@@ -180,6 +181,7 @@ class ScannerWin(QWidget):
                     if img is not None:
                         # Set autoscale for uploaded image.
                         self.set_screen(img, QImage.Format.Format_RGB32, True)
+                        img_to_process = img
             except Exception as e:
                 self.show_warning('Manual Capture Error', str(e))
             finally:
@@ -187,23 +189,9 @@ class ScannerWin(QWidget):
                 file_dialog.close()
                 self.upload_button.setEnabled(ret)
 
-    def frame_callback(self, frame):
-        """
-        This is a callback from Camera.
-        :param frame: Is a matrix returned from video feed.
-        :return: 0 or 1 to caller to handle consecutive error handling.
-        """
-        try:
-            self.set_screen(frame, QImage.Format.Format_RGB888)
-            # TODO: Spawn another thread for handling image processing to release the feed.
-
-            return 0
-        except Exception as e:
-            print(e)
-            return 1
-
-    def trace_callback(self, msg):
-        self.work_trace.setText(self.work_trace.text() + '\n' + msg)
+            if img_to_process is not None:
+                # Exception should be caught and displayed in trace.
+                self.controller.process_image(img_to_process)
 
     def set_screen(self, img, image_format=None, autoscale=False):
         """
@@ -237,3 +225,30 @@ class ScannerWin(QWidget):
     def closeEvent(self, event):
         self.controller.close()
         event.accept()
+
+    def frame_callback(self, frame):
+        """
+        This is a callback from Camera.
+        :param frame: Is a matrix returned from video feed.
+        :return: 0 or 1 to caller to handle consecutive error handling.
+        """
+        try:
+            self.set_screen(frame, QImage.Format.Format_RGB888)
+            # TODO: Spawn another thread for handling image processing to release the feed.
+
+            return 0
+        except Exception as e:
+            print(e)
+            return 1
+
+    def trace_callback(self, msg):
+        self.work_trace.setText(self.work_trace.text() + '\n' + msg)
+
+    def process_callback(self, image):
+        """
+        Job controller will send processed image for UI update only when successful. When error occurs, controller
+        should handle it trace without sending any image.
+        :param image: cv2.Mat (numpy.ndarray)
+        :return: None
+        """
+        self.set_screen(image, QImage.Format.Format_RGB32)

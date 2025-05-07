@@ -5,13 +5,14 @@ from trace_handler import TraceHandler
 
 
 class JobController:
-    def __init__(self, device, frame_callback, trace_callback, interval):
+    def __init__(self, device, frame_callback, trace_callback, process_callback, interval):
         self.camera = Camera(device, frame_callback, interval)
         # The default mode when application starts.
         self.auto_mode = True
         self.upload_mode = False
         self.trace_callback = trace_callback
         self.trace = TraceHandler(self.trace_callback)
+        self.process_callback = process_callback
         self.trace_callback('Trace')
 
     def start(self):
@@ -62,8 +63,21 @@ class JobController:
             if img is None:
                 self.trace.write(f"Error: Couldn't read image from {file_path}!")
                 return None
-            self.trace.write(f"Selected File: {file_path[0]}")
+            self.trace.write(f"Selected File: {file_path}")
             return img
         except Exception as e:
             self.trace.write(f"Error: {e}")
             return None
+
+    def process_image(self, img):
+        try:
+            self.trace.write(f'Processing image ...')
+            modified = cv2.resize(img, (640, 480))
+            if modified is not None:
+                self.trace.write(f'Resize image: OK')
+                self.process_callback(modified)
+            else:
+                self.trace.write(f'Resize image: KO')
+
+        except Exception as e:
+            self.trace.write(f"Error: {e}")
