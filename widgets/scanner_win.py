@@ -15,11 +15,10 @@ class ScannerWin(QWidget):
     HEIGHT_CORR = 0.05
     FRAME_INTERVAL = 30
     BUTTON_STYLE = "font-size:16px;"
+
     # BUTTON_STYLE = "border: 2px solid red; font-size:16px;"
 
-    BASIC_MODE = True
-
-    def __init__(self, device=0):  # 0 for default camera
+    def __init__(self, device=0, basic_mode=False):  # 0 for default camera
         super().__init__()
 
         # Set window attributes.
@@ -77,7 +76,7 @@ class ScannerWin(QWidget):
                                         self.FRAME_INTERVAL)
 
         # For manual file upload testing the following are added.
-        if self.BASIC_MODE:
+        if basic_mode:
             ret = self.controller.off_auto_mode()
             self.capture_button.setEnabled(ret)
             self.upload_button.setEnabled(ret)
