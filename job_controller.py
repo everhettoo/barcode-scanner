@@ -62,6 +62,7 @@ class JobController:
             if img is None:
                 self.trace.write(f"Error: Couldn't read image from {file_path}!")
                 return None
+            self.trace.write(f"Selected File: {file_path[0]}")
             return img
         except Exception as e:
             self.trace.write(f"Error: {e}")

@@ -1,6 +1,7 @@
 from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QGuiApplication, QImage, QPixmap
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton, QFileDialog
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton, QFileDialog, \
+    QMessageBox
 
 from job_controller import JobController
 from widgets.scrolllable import ScrollLabel
@@ -16,7 +17,7 @@ class ScannerWin(QWidget):
     BUTTON_STYLE = "font-size:16px;"
     # BUTTON_STYLE = "border: 2px solid red; font-size:16px;"
 
-    FILE_UPLOAD_TEST = True
+    FILE_UPLOAD_TEST = False
 
     def __init__(self, device=0):  # 0 for default camera
         super().__init__()
@@ -168,20 +169,23 @@ class ScannerWin(QWidget):
 
             # Set dialog to process uploaded file.
             file_dialog = QFileDialog(self)
-            file_dialog.setWindowTitle("Open File")
-            file_dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-            file_dialog.setViewMode(QFileDialog.ViewMode.Detail)
+            try:
+                file_dialog.setWindowTitle("Open File")
+                file_dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+                file_dialog.setViewMode(QFileDialog.ViewMode.Detail)
 
-            if file_dialog.exec():
-                selected_files = file_dialog.selectedFiles()
-                print("Selected File:", selected_files[0])
-                # TODO: job controller to validate for processing.
-                img = self.controller.load_image(selected_files[0])
-                self.set_screen(img, QImage.Format.Format_Grayscale16)
-
-            # Close file dialog and reset upload button.
-            file_dialog.close()
-            self.upload_button.setEnabled(ret)
+                if file_dialog.exec():
+                    selected_files = file_dialog.selectedFiles()
+                    img = self.controller.load_image(selected_files[0])
+                    if img is not None:
+                        # Set autoscale for uploaded image.
+                        self.set_screen(img, QImage.Format.Format_RGB32, True)
+            except Exception as e:
+                self.show_warning('Manual Capture Error', str(e))
+            finally:
+                # Close file dialog and reset upload button.
+                file_dialog.close()
+                self.upload_button.setEnabled(ret)
 
     def frame_callback(self, frame):
         """
@@ -201,17 +205,34 @@ class ScannerWin(QWidget):
     def trace_callback(self, msg):
         self.work_trace.setText(self.work_trace.text() + '\n' + msg)
 
-    def set_screen(self, img, image_format=None):
+    def set_screen(self, img, image_format=None, autoscale=False):
         """
         Single method to display images on the application.
+        :param autoscale: Is set true for displaying uploaded image.
         :param img: cv2.Mar (ndarray)
         :param image_format: cv2 format
         :return: None
         """
         h, w, ch = img.shape
-        image = QImage(img.data, w, h, image_format)  # pyside6: QImage.Format_RGB888
+        if image_format:
+            image = QImage(img.data, w, h, image_format)
+        else:
+            image = QImage(img.data, w, h)
+
         pixmap = QPixmap.fromImage(image)
         self.image_label.setPixmap(pixmap)
+
+        # Autoscale is true for uploaded image.
+        self.image_label.setScaledContents(autoscale)
+
+    def show_warning(self, title: str, message: str):
+        box = QMessageBox()
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle(title)
+        box.setText(title)
+        box.setDetailedText(message)
+        box.setStandardButtons(QMessageBox.StandardButton.Ok)
+        box.exec()
 
     def closeEvent(self, event):
         self.controller.close()
