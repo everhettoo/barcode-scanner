@@ -1,14 +1,17 @@
 import cv2
 
 from camera import Camera
+from trace_handler import TraceHandler
 
 
 class JobController:
-    def __init__(self, device, frame_callback, interval):
+    def __init__(self, device, frame_callback, trace_callback, interval):
         self.camera = Camera(device, frame_callback, interval)
         # The default mode when application starts.
         self.auto_mode = True
         self.upload_mode = False
+        self.trace_callback = trace_callback
+        self.trace = TraceHandler(self.trace_callback)
 
     def start(self):
         self.camera.start()
@@ -25,16 +28,20 @@ class JobController:
             self.auto_mode = True
             self.upload_mode = False
             self.reset()
+            self.trace.write(f'Auto-request (ON): Accepted')
             return True
         else:
+            self.trace.write(f'Auto-request (ON): Denied')
             return False
 
     def off_auto_mode(self):
         if self.auto_mode:
             self.auto_mode = False
             self.reset()
+            self.trace.write(f'Auto-request (OFF): Accepted')
             return True
         else:
+            self.trace.write(f'Auto-request (OFF): Denied')
             return False
 
     def on_manual_upload(self):

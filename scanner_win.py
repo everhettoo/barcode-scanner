@@ -1,8 +1,53 @@
 from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QGuiApplication, QImage, QPixmap
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton, QFileDialog
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton, QFileDialog, \
+    QScrollArea
 
 from job_controller import JobController
+
+
+class ScrollLabel(QScrollArea):
+    """
+    Scroll widget for QScrollArea for displaying traces.
+    Code was taken and modified from: https://www.geeksforgeeks.org/pyqt5-scrollable-label/
+    """
+    LABEL_STYLE = "font-size:16px;"
+
+    # LABEL_STYLE = "border: 2px solid yellow; font-size:16px;"
+
+    def __init__(self, *args, **kwargs):
+        QScrollArea.__init__(self, *args, **kwargs)
+
+        # making widget resizable
+        self.setWidgetResizable(True)
+
+        # making qwidget object
+        content = QWidget(self)
+        self.setWidget(content)
+
+        # vertical box layout
+        lay = QVBoxLayout(content)
+
+        # creating label
+        self.label = QLabel(content)
+
+        # setting alignment to the text
+        self.label.setStyleSheet(self.LABEL_STYLE)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+
+        # making label multi-line
+        self.label.setWordWrap(True)
+
+        # self.setWidget(self.label)
+        # adding label to the layout
+        lay.addWidget(self.label)
+
+    # the setText method
+    def setText(self, text):
+        self.label.setText(text)
+
+    def text(self):
+        return self.label.text()
 
 
 class ScannerWin(QWidget):
@@ -13,10 +58,9 @@ class ScannerWin(QWidget):
     HEIGHT_CORR = 0.05
     FRAME_INTERVAL = 30
     BUTTON_STYLE = "font-size:16px;"
+    # BUTTON_STYLE = "border: 2px solid red; font-size:16px;"
 
     FILE_UPLOAD_TEST = False
-
-    # BUTTON_STYLE = "border: 2px solid red; font-size:16px;"
 
     def __init__(self, device=0):  # 0 for default camera
         super().__init__()
@@ -62,6 +106,10 @@ class ScannerWin(QWidget):
         self.upload_button.clicked.connect(self.manual_upload_button_click)
         self.upload_button.setDisabled(True)
 
+        # Declare Scrollable labels
+        self.work_trace = ScrollLabel(self)
+        self.work_trace.setText('Trace...')
+
         # Setup individual components (layouts)
         self.__add_screen_layout()
         self.__add_control_layout()
@@ -69,7 +117,7 @@ class ScannerWin(QWidget):
         self.__add_trace_layout()
 
         # On error will throw exception.
-        self.controller = JobController(device, self.frame_callback, self.FRAME_INTERVAL)
+        self.controller = JobController(device, self.frame_callback, self.trace_callback, self.FRAME_INTERVAL)
 
         # For manual file upload testing the following are added.
         if self.FILE_UPLOAD_TEST:
@@ -109,17 +157,12 @@ class ScannerWin(QWidget):
         self.work_log = QLabel(self)
         self.work_log.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.work_log.setStyleSheet("border: 2px solid blue;")
-        self.work_log.setText("Work log")
+        self.work_log.setText("Workspace")
         self.work_log.setFixedHeight(self.WIN_HEIGHT * 0.6)
 
         self.right_v_layout.addWidget(self.work_log)
 
     def __add_trace_layout(self):
-        self.work_trace = QLabel(self)
-        self.work_trace.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.work_trace.setStyleSheet("border: 2px solid yellow;")
-        self.work_trace.setText("Work trace")
-
         self.right_v_layout.addWidget(self.work_trace)
 
     def __center(self):
@@ -144,12 +187,12 @@ class ScannerWin(QWidget):
 
         if val.isChecked():
             ret = self.controller.on_auto_mode()
-            print(f'auto-request (ON) :{ret}')
+            # print(f'auto-request (ON) :{ret}')
             self.capture_button.setDisabled(ret)
             self.upload_button.setDisabled(ret)
         else:
             ret = self.controller.off_auto_mode()
-            print(f'auto-request (OFF):{ret}')
+            # print(f'auto-request (OFF):{ret}')
             self.capture_button.setEnabled(ret)
             self.upload_button.setEnabled(ret)
 
@@ -210,6 +253,9 @@ class ScannerWin(QWidget):
         except Exception as e:
             print(e)
             return 1
+
+    def trace_callback(self, msg):
+        self.work_trace.setText(self.work_trace.text() + '\n' + msg)
 
     def closeEvent(self, event):
         # self.controller.stop()
