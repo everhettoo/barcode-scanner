@@ -33,7 +33,8 @@ class Camera:
 
             if self.err_cnt >= self.err_threshold:
                 # TODO: Send signal to application to calibrate or shutdown.
-                pass
+                return None
+            return None
         else:
             return 1
 

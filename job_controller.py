@@ -1,5 +1,8 @@
+import threading
+
 import cv2
 
+import image_processor
 from camera import Camera
 from trace_handler import TraceHandler
 
@@ -30,30 +33,30 @@ class JobController:
             self.auto_mode = True
             self.upload_mode = False
             self.reset()
-            self.trace.write(f'Auto-request (ON): Accepted')
+            self.trace.write(f'[{threading.currentThread().native_id}] Auto-request (ON): Accepted')
             return True
         else:
-            self.trace.write(f'Auto-request (ON): Denied')
+            self.trace.write(f'[{threading.currentThread().native_id}] Auto-request (ON): Denied')
             return False
 
     def off_auto_mode(self):
         if self.auto_mode:
             self.auto_mode = False
             self.reset()
-            self.trace.write(f'Auto-request (OFF): Accepted')
+            self.trace.write(f'[{threading.currentThread().native_id}] Auto-request (OFF): Accepted')
             return True
         else:
-            self.trace.write(f'Auto-request (OFF): Denied')
+            self.trace.write(f'[{threading.currentThread().native_id}] Auto-request (OFF): Denied')
             return False
 
     def on_manual_upload(self):
         if not self.auto_mode or not self.upload_mode:
             self.upload_mode = True
             self.close()
-            self.trace.write(f'Upload-request: Accepted')
+            self.trace.write(f'[{threading.currentThread().native_id}] Upload-request: Accepted')
             return True
         else:
-            self.trace.write(f'Upload-request: Denied')
+            self.trace.write(f'[{threading.currentThread().native_id}] Upload-request: Denied')
             return False
 
     def load_image(self, file_path):
@@ -61,23 +64,26 @@ class JobController:
             # IMREAD_UNCHANGED - loads alpha channel.
             img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
             if img is None:
-                self.trace.write(f"Error: Couldn't read image from {file_path}!")
+                self.trace.write(f"[{threading.currentThread().native_id}] Error: Couldn't read image from {file_path}!")
                 return None
-            self.trace.write(f"Selected File: {file_path}")
+            self.trace.write(f"[{threading.currentThread().native_id}] Selected File: {file_path}")
             return img
         except Exception as e:
-            self.trace.write(f"Error: {e}")
+            self.trace.write(f"[{threading.currentThread().native_id}] Error: {e}")
             return None
 
     def process_image(self, img):
         try:
-            self.trace.write(f'Processing image ...')
-            modified = cv2.resize(img, (640, 480))
+            self.trace.write(f'[{threading.currentThread().native_id}] Processing image ...')
+            # modified = cv2.resize(img, (640, 480))
+            modified = image_processor.detect_barcode(img)
             if modified is not None:
-                self.trace.write(f'Resize image: OK')
+                self.trace.write(f'[{threading.currentThread().native_id}] Resize image: OK')
                 self.process_callback(modified)
             else:
-                self.trace.write(f'Resize image: KO')
+                self.trace.write(f'[{threading.currentThread().native_id}] Resize image: KO')
+
+
 
         except Exception as e:
-            self.trace.write(f"Error: {e}")
+            self.trace.write(f"[{threading.currentThread().native_id}] Error: {e}")

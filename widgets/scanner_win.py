@@ -1,8 +1,13 @@
+import threading
+import time
+
+import numpy as np
 from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QGuiApplication, QImage, QPixmap
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton, QFileDialog, \
     QMessageBox
 
+import image_processor
 from job_controller import JobController
 from widgets.scrolllable import ScrollLabel
 
@@ -109,7 +114,7 @@ class ScannerWin(QWidget):
 
     def __add_workspace_layout(self):
         self.work_log = QLabel(self)
-        self.work_log.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.work_log.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.work_log.setStyleSheet("border: 2px solid blue;")
         self.work_log.setText("Workspace")
         self.work_log.setFixedHeight(self.WIN_HEIGHT * 0.6)
@@ -166,6 +171,7 @@ class ScannerWin(QWidget):
             self.upload_button.setDisabled(ret)
             self.capture_button.setDisabled(ret)
             self.image_label.setPixmap(QPixmap())
+            self.work_log.setPixmap(QPixmap())
 
             # Set dialog to process uploaded file.
             file_dialog = QFileDialog(self)
@@ -189,14 +195,17 @@ class ScannerWin(QWidget):
                 self.upload_button.setEnabled(ret)
 
             if img_to_process is not None:
+                # Start new thread to allow UI updating.
+                t1 = threading.Thread(target=self.controller.process_image, args=(img_to_process,))
+                t1.start()
                 # Exception should be caught and displayed in trace.
-                self.controller.process_image(img_to_process)
+                # self.controller.process_image(img_to_process)
 
     def set_screen(self, img, image_format=None, autoscale=False):
         """
         Single method to display images on the application.
         :param autoscale: Is set true for displaying uploaded image.
-        :param img: cv2.Mar (ndarray)
+        :param img: cv2.Mat (ndarray)
         :param image_format: cv2 format
         :return: None
         """
@@ -211,6 +220,28 @@ class ScannerWin(QWidget):
 
         # Autoscale is true for uploaded image.
         self.image_label.setScaledContents(autoscale)
+
+    def set_workspace(self, img, image_format=None, autoscale=False):
+        """
+        Single method to display images on the application.
+        :param autoscale: Is set true for displaying uploaded image.
+        :param img: cv2.Mar (ndarray)
+        :param image_format: cv2 format
+        :return: None
+        """
+
+        # Delay thread for display effect.
+        time.sleep(0.8)
+
+        # Resize image for workspace size.
+        img = image_processor.resize_image(img, self.work_log.height(), self.work_log.width())
+        h, w, ch = img.shape
+        img = np.ascontiguousarray(img)
+
+        self.work_log.setScaledContents(autoscale)
+        image = QImage(img.data, w, h, image_format)
+        pixmap = QPixmap.fromImage(image)
+        self.work_log.setPixmap(pixmap)
 
     def show_warning(self, title: str, message: str):
         box = QMessageBox()
@@ -246,8 +277,8 @@ class ScannerWin(QWidget):
     def process_callback(self, image):
         """
         Job controller will send processed image for UI update only when successful. When error occurs, controller
-        should handle it trace without sending any image.
+        should handle its trace without sending any image.
         :param image: cv2.Mat (numpy.ndarray)
         :return: None
         """
-        self.set_screen(image, QImage.Format.Format_RGB32)
+        self.set_workspace(image, QImage.Format.Format_RGB32, True)
