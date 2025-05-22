@@ -3,7 +3,7 @@ import numpy as np
 
 
 def detect_barcode(image):
-    # image = cv2.imread('resources/barcode2.png')
+    # Convert to grayscale for processing.
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # Find vertical lines (x-axis intensity change when y = 0).
@@ -45,6 +45,13 @@ def detect_barcode(image):
     cropped = image[Y:Y + H, X:X + W]
 
     return image, cropped
+
+
+def load_image(file_path):
+    # IMREAD_UNCHANGED - loads alpha channel.
+    # img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
+    # Convert the image from BGR to RGB
+    return cv2.cvtColor(cv2.imread(file_path), cv2.COLOR_BGR2RGB)
 
 
 def resize_image(image, width, height):

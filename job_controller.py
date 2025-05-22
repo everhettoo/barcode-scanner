@@ -1,7 +1,5 @@
 import threading
 
-import cv2
-
 import image_processor
 from camera import Camera
 from trace_handler import TraceHandler
@@ -62,7 +60,9 @@ class JobController:
     def load_image(self, file_path):
         try:
             # IMREAD_UNCHANGED - loads alpha channel.
-            img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
+            # img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
+            # Convert the image from BGR to RGB
+            img = image_processor.load_image(file_path)
             if img is None:
                 self.trace.write(
                     f"[{threading.currentThread().native_id}] Error: Couldn't read image from {file_path}!")

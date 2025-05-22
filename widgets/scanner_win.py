@@ -24,6 +24,8 @@ class ScannerWin(QWidget):
     SCREEN_LAYOUT_HEIGHT_OFFSET = 100
     WORKSPACE_DISPLAY_X_OFFSET = 20
     WORKSPACE_DISPLAY_Y_OFFSET = 80
+    SCREEN_DISPLAY_X_OFFSET = 20
+    SCREEN_DISPLAY_Y_OFFSET = 80
 
     # BUTTON_STYLE = "border: 2px solid red; font-size:16px;"
 
@@ -189,7 +191,8 @@ class ScannerWin(QWidget):
                     img = self.controller.load_image(selected_files[0])
                     if img is not None:
                         # Set autoscale for uploaded image.
-                        self.set_screen(img, QImage.Format.Format_RGB32, True)
+                        # self.set_screen(img, QImage.Format.Format_RGB32, True)
+                        self.set_screen(img, QImage.Format.Format_RGB888, False)
                         img_to_process = img
             except Exception as e:
                 self.show_warning('Manual Capture Error', str(e))
@@ -213,11 +216,15 @@ class ScannerWin(QWidget):
         :param image_format: cv2 format
         :return: None
         """
+        # Resize image for screen fit.
+        img = image_processor.resize_image(img, self.image_label.width() - self.SCREEN_DISPLAY_X_OFFSET,
+                                           self.image_label.height() - self.SCREEN_DISPLAY_Y_OFFSET)
+
         h, w, ch = img.shape
         if image_format:
-            image = QImage(img.data, w, h, image_format)
+            image = QImage(img, w, h, image_format)
         else:
-            image = QImage(img.data, w, h)
+            image = QImage(img, w, h)
 
         pixmap = QPixmap.fromImage(image)
         self.image_label.setPixmap(pixmap)
@@ -235,7 +242,7 @@ class ScannerWin(QWidget):
         """
 
         # Delay thread for display effect.
-        time.sleep(0.8)
+        time.sleep(0.6)
 
         # Resize image for workspace size.
         img = image_processor.resize_image(img, self.work_log.width() - self.WORKSPACE_DISPLAY_X_OFFSET,
@@ -288,9 +295,10 @@ class ScannerWin(QWidget):
         :return: None
         """
         # Update the main screen with the annotated image.
-        self.set_screen(image, QImage.Format.Format_RGB32, True)
+        self.set_screen(image, QImage.Format.Format_RGB888, True)
 
         # Update the workspace with the annotated image.
-        self.set_workspace(cropped, QImage.Format.Format_RGB32, False)
+        self.set_workspace(cropped, QImage.Format.Format_RGB888, True)
 
+        # Update scrollbar for updated text.
         self.work_trace.verticalScrollBar().setValue(self.work_trace.verticalScrollBar().maximum())
