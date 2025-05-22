@@ -238,8 +238,8 @@ class ScannerWin(QWidget):
         time.sleep(0.8)
 
         # Resize image for workspace size.
-        img = image_processor.resize_image(img, self.work_log.height() - self.WORKSPACE_DISPLAY_X_OFFSET,
-                                           self.work_log.width() - self.WORKSPACE_DISPLAY_X_OFFSET)
+        img = image_processor.resize_image(img, self.work_log.width() - self.WORKSPACE_DISPLAY_X_OFFSET,
+                                           self.work_log.height() - self.WORKSPACE_DISPLAY_X_OFFSET)
         h, w, ch = img.shape
         img = np.ascontiguousarray(img)
 
