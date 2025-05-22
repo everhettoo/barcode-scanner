@@ -20,6 +20,8 @@ class ScannerWin(QWidget):
     HEIGHT_CORR = 0.05
     FRAME_INTERVAL = 30
     BUTTON_STYLE = "font-size:16px;"
+    SCREEN_LAYOUT_WIDTH = 450
+    SCREEN_LAYOUT_HEIGHT = 100
 
     # BUTTON_STYLE = "border: 2px solid red; font-size:16px;"
 
@@ -95,8 +97,8 @@ class ScannerWin(QWidget):
         # Add the screen label to left_v_layout.
         self.image_label = QLabel(self)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setFixedWidth(self.WIN_WIDTH - 450)
-        self.image_label.setFixedHeight(self.WIN_HEIGHT - 100)
+        self.image_label.setFixedWidth(self.WIN_WIDTH - self.SCREEN_LAYOUT_WIDTH)
+        self.image_label.setFixedHeight(self.WIN_HEIGHT - self.SCREEN_LAYOUT_HEIGHT)
         self.image_label.setStyleSheet("border: 2px solid green;")
 
         self.left_v_layout.addWidget(self.image_label)
@@ -274,11 +276,16 @@ class ScannerWin(QWidget):
     def trace_callback(self, msg):
         self.work_trace.setText(self.work_trace.text() + '\n' + msg)
 
-    def process_callback(self, image):
+    def process_callback(self, image, cropped):
         """
         Job controller will send processed image for UI update only when successful. When error occurs, controller
         should handle its trace without sending any image.
-        :param image: cv2.Mat (numpy.ndarray)
+        :param cropped:cv2.Mat segmented image containing barcode/qr-code.
+        :param image: cv2.Mat (numpy.ndarray) - The original annotated image.
         :return: None
         """
-        self.set_workspace(image, QImage.Format.Format_RGB32, True)
+        # Update the main screen with the annotated image.
+        self.set_screen(image, QImage.Format.Format_RGB32, True)
+
+        # Update the workspace with the annotated image.
+        self.set_workspace(cropped, QImage.Format.Format_RGB32, True)

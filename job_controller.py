@@ -83,9 +83,9 @@ class JobController:
 
     def process_barcode(self, img):
         self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode ...')
-        processed = image_processor.detect_barcode(img)
-        if processed is not None:
+        annotated_img, cropped = image_processor.detect_barcode(img)
+        if cropped is not None:
             self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: OK')
-            self.process_callback(processed)
+            self.process_callback(annotated_img, cropped)
         else:
             self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: KO')

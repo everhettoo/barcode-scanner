@@ -46,7 +46,7 @@ def detect_barcode(image):
 
     # cv2.imwrite('tmp.png', cropped)
 
-    return cropped
+    return image, cropped
 
 
 def resize_image(image, height, width):
