@@ -64,7 +64,8 @@ class JobController:
             # IMREAD_UNCHANGED - loads alpha channel.
             img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
             if img is None:
-                self.trace.write(f"[{threading.currentThread().native_id}] Error: Couldn't read image from {file_path}!")
+                self.trace.write(
+                    f"[{threading.currentThread().native_id}] Error: Couldn't read image from {file_path}!")
                 return None
             self.trace.write(f"[{threading.currentThread().native_id}] Selected File: {file_path}")
             return img
@@ -74,16 +75,17 @@ class JobController:
 
     def process_image(self, img):
         try:
-            self.trace.write(f'[{threading.currentThread().native_id}] Processing image ...')
-            # modified = cv2.resize(img, (640, 480))
-            modified = image_processor.detect_barcode(img)
-            if modified is not None:
-                self.trace.write(f'[{threading.currentThread().native_id}] Resize image: OK')
-                self.process_callback(modified)
-            else:
-                self.trace.write(f'[{threading.currentThread().native_id}] Resize image: KO')
-
-
+            self.trace.write(f'\n[{threading.currentThread().native_id}] <<<< Processing image >>>>')
+            self.process_barcode(img)
 
         except Exception as e:
             self.trace.write(f"[{threading.currentThread().native_id}] Error: {e}")
+
+    def process_barcode(self, img):
+        self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode ...')
+        processed = image_processor.detect_barcode(img)
+        if processed is not None:
+            self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: OK')
+            self.process_callback(processed)
+        else:
+            self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: KO')
