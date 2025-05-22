@@ -75,8 +75,9 @@ class JobController:
 
     def process_image(self, img):
         try:
-            self.trace.write(f'\n[{threading.currentThread().native_id}] <<<< Processing image >>>>')
+            self.trace.write(f'\n[{threading.currentThread().native_id}] <<<< Processing-Start >>>>')
             self.process_barcode(img)
+            self.trace.write(f'[{threading.currentThread().native_id}] <<<< Processing-End >>>>\n')
 
         except Exception as e:
             self.trace.write(f"[{threading.currentThread().native_id}] Error: {e}")

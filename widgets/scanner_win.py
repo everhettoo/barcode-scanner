@@ -15,13 +15,15 @@ from widgets.scrolllable import ScrollLabel
 class ScannerWin(QWidget):
     H_MARGIN = 10
     V_MARGIN = 10
-    WIN_WIDTH = 1200
+    WIN_WIDTH = 1450
     WIN_HEIGHT = 900
     HEIGHT_CORR = 0.05
     FRAME_INTERVAL = 30
     BUTTON_STYLE = "font-size:16px;"
-    SCREEN_LAYOUT_WIDTH = 450
-    SCREEN_LAYOUT_HEIGHT = 100
+    SCREEN_LAYOUT_WIDTH_OFFSET = 750
+    SCREEN_LAYOUT_HEIGHT_OFFSET = 100
+    WORKSPACE_DISPLAY_X_OFFSET = 20
+    WORKSPACE_DISPLAY_Y_OFFSET = 80
 
     # BUTTON_STYLE = "border: 2px solid red; font-size:16px;"
 
@@ -97,9 +99,9 @@ class ScannerWin(QWidget):
         # Add the screen label to left_v_layout.
         self.image_label = QLabel(self)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setFixedWidth(self.WIN_WIDTH - self.SCREEN_LAYOUT_WIDTH)
-        self.image_label.setFixedHeight(self.WIN_HEIGHT - self.SCREEN_LAYOUT_HEIGHT)
-        self.image_label.setStyleSheet("border: 2px solid green;")
+        self.image_label.setFixedWidth(self.WIN_WIDTH - self.SCREEN_LAYOUT_WIDTH_OFFSET)
+        self.image_label.setFixedHeight(self.WIN_HEIGHT - self.SCREEN_LAYOUT_HEIGHT_OFFSET)
+        # self.image_label.setStyleSheet("border: 2px solid green;")
 
         self.left_v_layout.addWidget(self.image_label)
 
@@ -117,8 +119,8 @@ class ScannerWin(QWidget):
     def __add_workspace_layout(self):
         self.work_log = QLabel(self)
         self.work_log.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.work_log.setStyleSheet("border: 2px solid blue;")
-        self.work_log.setText("Workspace")
+        self.work_log.setStyleSheet("border: 1px solid black; font-size:16px;")
+        self.work_log.setText("[ Workspace ]")
         self.work_log.setFixedHeight(self.WIN_HEIGHT * 0.6)
 
         self.right_v_layout.addWidget(self.work_log)
@@ -236,7 +238,8 @@ class ScannerWin(QWidget):
         time.sleep(0.8)
 
         # Resize image for workspace size.
-        img = image_processor.resize_image(img, self.work_log.height(), self.work_log.width())
+        img = image_processor.resize_image(img, self.work_log.height() - self.WORKSPACE_DISPLAY_X_OFFSET,
+                                           self.work_log.width() - self.WORKSPACE_DISPLAY_X_OFFSET)
         h, w, ch = img.shape
         img = np.ascontiguousarray(img)
 
@@ -288,4 +291,6 @@ class ScannerWin(QWidget):
         self.set_screen(image, QImage.Format.Format_RGB32, True)
 
         # Update the workspace with the annotated image.
-        self.set_workspace(cropped, QImage.Format.Format_RGB32, True)
+        self.set_workspace(cropped, QImage.Format.Format_RGB32, False)
+
+        self.work_trace.verticalScrollBar().setValue(self.work_trace.verticalScrollBar().maximum())
