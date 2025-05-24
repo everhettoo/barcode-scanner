@@ -68,15 +68,55 @@ def average_blur(image, ksize):
     return np.array(255 * (blurred / 255), dtype='uint8')
 
 
-def high_boost(image, edges):
+def morph_close(image, ksize):
     """
-    Applies a high boosting on the given image by adding the original image detected edges.
-    :param image: The original image.
-    :param edges: The blurred image.
-    :return: The blurred image.
+    Performs close operation on the given image using the given kernel.
+    :param image: The image to dilate.
+    :param ksize: The size of the kernel to use.
+    :return: The dilated image.
     """
-    return np.array(255 * ((image + cv2.convertScaleAbs(cv2.subtract(image, edges))) / 255), dtype='uint8')
+    se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
+    return cv2.morphologyEx(image, cv2.MORPH_CLOSE, se)
 
+
+def morph_dilate(image, ksize, iterations):
+    """
+    Performs dilate operation on the given image using the given kernel.
+    :param image: The image to dilate.
+    :param ksize: The size of the kernel to use.
+    :param iterations: The number of iterations to perform.
+    :return: The dilated image.
+    """
+    se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
+    return cv2.dilate(image, se, iterations=iterations)
+
+
+# def laplacian_edges(image):
+#     # kernel = np.array([[0, 1, 0],
+#     #                    [1, -4, 1],
+#     #                    [0, 1, 0]])
+#
+#     kernel = np.array([[0, -1, 0],
+#                        [-1, -5, -1],
+#                        [0, -1, 0]])
+#
+#     # image = image.astype('float32')
+#     tmp = cv2.filter2D(image, -1, kernel)
+#     tmp = cv2.convertScaleAbs(tmp)
+#     edges = np.array(255 * tmp / 255, dtype='uint8')
+#     return edges
+#     # return cv2.convertScaleAbs(edges)
+
+#
+# def high_boost(image, edges):
+#     """
+#     Applies a high boosting on the given image by adding the original image detected edges.
+#     :param image: The original image.
+#     :param edges: The blurred image.
+#     :return: The blurred image.
+#     """
+#     return np.array(255 * ((image + cv2.convertScaleAbs(cv2.subtract(image, edges))) / 255), dtype='uint8')
+#
 
 def detect_gradient(image):
     """

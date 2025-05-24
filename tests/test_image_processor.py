@@ -5,6 +5,13 @@ import ipcv.image_processor as ip
 
 
 class Test(TestCase):
+    """
+    The unit test was implemented for testing the image processor class for calculation and byte returned.
+    However, the stats won't make sense for all the unit tests. E.g. for blurring the kernel cluster can be verified
+    meanwhile for transformation, the overall matrix is affected.
+    TODO: Therefore, this unit tests can serve as for studying for each operator's behaviour in details.
+    """
+
     @classmethod
     def setUpClass(cls):
         cls.mat = np.array([[30, 120, 255],
@@ -34,4 +41,9 @@ class Test(TestCase):
     def test_load_average_blur(self):
         f = self.mat.astype(np.float32)
         g = ip.average_blur(f, (9, 9))
+        self.print_result(self.mat, g)
+
+    def test_load_laplacian_edges(self):
+        f = self.mat.astype(np.float32)
+        g = ip.laplacian_edges(f)
         self.print_result(self.mat, g)
