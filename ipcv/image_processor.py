@@ -33,30 +33,32 @@ def resize_image(image, width, height):
     return cv2.resize(image, (width, height))
 
 
-def adjust_gamma2(image, gamma=1.0):
+def adjust_gamma(image, gamma=1.0):
     """
     Adjusts the intensity of the given image using the power law,
     :param image: The image to adjust.
-    :param gamma: The power to which the image will be adjusted. Greater than 1 make it darker, lower than 1 makes it
-    brighter.
+    :param gamma: The pixel intensity is raised to the power of gamma. When gamma >1 intensity becomes darker, meanwhile
+    when gamma < 1 (non-negative value) intensity becomes brighter. When gamma = 1, there is no effect.
     :return: The adjusted image.
     """
+    # s = (c*r)^gamma
     return np.array(255 * (image / 255) ** gamma, dtype='uint8')
 
 
-def gaussian_blur(image, ksize):
+def gaussian_blur(image, ksize, sigma):
     """
     Applies a gaussian blur on the given image.
     :param image: The image to blur.
-    :param ksize: The size of the kernel to use.
+    :param ksize: The size of the kernel to use (requires larges kernal compared to mean/median)
+    :param sigma: Gaussian kernel standard deviation in X direction.
     :return: The blurred image.
     """
-    return cv2.GaussianBlur(image, ksize, 0)
+    return np.array(cv2.GaussianBlur(image, ksize, sigma), dtype='uint8')
 
 
-def average_smooth(image, ksize):
+def average_blur(image, ksize):
     """
-    Applies a average smoothing on the given image.
+    Applies a mean blurring on the given image.
     :param image: The image to smooth.
     :param ksize: The size of the kernel to use.
     :return: The smoothed image.
@@ -66,14 +68,14 @@ def average_smooth(image, ksize):
     return np.array(255 * (blurred / 255), dtype='uint8')
 
 
-def high_boost(image, blurred):
+def high_boost(image, edges):
     """
-    Applies a high boosting on the given image.
+    Applies a high boosting on the given image by adding the original image detected edges.
     :param image: The original image.
-    :param blurred: The blurred image.
+    :param edges: The blurred image.
     :return: The blurred image.
     """
-    return np.array(255 * ((image + cv2.convertScaleAbs(cv2.subtract(image, blurred))) / 255), dtype='uint8')
+    return np.array(255 * ((image + cv2.convertScaleAbs(cv2.subtract(image, edges))) / 255), dtype='uint8')
 
 
 def detect_gradient(image):
@@ -120,17 +122,17 @@ def detect_barcode2(image, gamma, gaussian_ksize, avg_ksize, thresh_min):
     # Convert to grayscale for processing.
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    gamma_corrected = adjust_gamma(gray, gamma)
+    gamma_corrected = adjust_gamma3(gray, gamma)
 
     blurred = gaussian_blur(gamma_corrected, gaussian_ksize)
 
-    blurred2 = average_smooth(blurred, avg_ksize)
+    blurred2 = average_blur(blurred, avg_ksize)
 
     boosted = high_boost(blurred2, blurred2)
 
     gradient = detect_gradient(boosted)
 
-    avg_smoothed = average_smooth(gradient, [3,3])
+    avg_smoothed = average_blur(gradient, [3, 3])
 
     thresh = binarize(avg_smoothed)
 
@@ -162,7 +164,7 @@ def detect_barcode2(image, gamma, gaussian_ksize, avg_ksize, thresh_min):
 
 ### Deprecated
 
-def adjust_gamma(image, gamma=1.0):
+def adjust_gamma3(image, gamma=1.0):
     # build a lookup table mapping the pixel values [0, 255] to their adjusted gamma values
     inv_gamma = 1.0 / gamma
     table = np.array([((i / 255.0) ** inv_gamma) * 255

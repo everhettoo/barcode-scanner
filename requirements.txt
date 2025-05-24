@@ -3,3 +3,4 @@ opencv-python~=4.11.0.86
 PyQt6-sip~=13.10.0
 numpy~=2.0.2
 matplotlib~=3.9.4
+scipy~=1.13.1
