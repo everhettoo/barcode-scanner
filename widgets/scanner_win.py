@@ -217,7 +217,7 @@ class ScannerWin(QWidget):
         :return: None
         """
         # Resize image for screen fit.
-        img = image_processor.resize_image(img, self.image_label.width() - self.SCREEN_DISPLAY_X_OFFSET,
+        img = cvlib.resize_image(img, self.image_label.width() - self.SCREEN_DISPLAY_X_OFFSET,
                                            self.image_label.height() - self.SCREEN_DISPLAY_Y_OFFSET)
 
         h, w, ch = img.shape
@@ -245,7 +245,7 @@ class ScannerWin(QWidget):
         time.sleep(0.6)
 
         # Resize image for workspace size.
-        img = image_processor.resize_image(img, self.work_log.width() - self.WORKSPACE_DISPLAY_X_OFFSET,
+        img = cvlib.resize_image(img, self.work_log.width() - self.WORKSPACE_DISPLAY_X_OFFSET,
                                            self.work_log.height() - self.WORKSPACE_DISPLAY_X_OFFSET)
         h, w, ch = img.shape
         img = np.ascontiguousarray(img)

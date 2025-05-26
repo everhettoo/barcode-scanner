@@ -62,7 +62,7 @@ class JobController:
             # IMREAD_UNCHANGED - loads alpha channel.
             # img = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
             # Convert the image from BGR to RGB
-            img = image_processor.load_image(file_path)
+            img = cvlib.load_image(file_path)
             if img is None:
                 self.trace.write(
                     f"[{threading.currentThread().native_id}] Error: Couldn't read image from {file_path}!")
@@ -84,7 +84,7 @@ class JobController:
 
     def process_barcode(self, img):
         self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode ...')
-        annotated_img, cropped = image_processor.detect_barcode(img)
+        annotated_img, cropped = cvlib.detect_barcode(img)
         if cropped is not None:
             self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: OK')
             self.process_callback(annotated_img, cropped)

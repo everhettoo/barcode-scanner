@@ -91,6 +91,22 @@ def morph_dilate(image, ksize, iterations):
     return cv2.dilate(image, se, iterations=iterations)
 
 
+def prominent_contour(source_image, processed_image):
+    contours, hierarchy = cv2.findContours(processed_image.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    c = sorted(contours, key=cv2.contourArea, reverse=True)[0]
+
+    # compute the rotated bounding box of the largest contour
+    rect = cv2.minAreaRect(c)
+    box = np.intp(cv2.boxPoints(rect))
+    # draw a bounding box rounded the detected barcode and display the image
+    cv2.drawContours(source_image, [box], -1, (0, 255, 0), 3);
+
+    [X, Y, W, H] = cv2.boundingRect(box)
+    cropped = source_image[Y:Y + H, X:X + W]
+
+    return source_image, cropped
+
+
 # def laplacian_edges(image):
 #     # kernel = np.array([[0, 1, 0],
 #     #                    [1, -4, 1],
@@ -158,36 +174,37 @@ def dilate(image, ksize, iteration):
     return closed
 
 
-def detect_barcode2(image, gamma, gaussian_ksize, avg_ksize, thresh_min):
+def detect_barcode2(image, gamma, gaussian_ksize, gaussian_sigma, avg_ksize, thresh_min):
     # Convert to grayscale for processing.
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    gamma_corrected = adjust_gamma3(gray, gamma)
+    p = adjust_gamma3(gray, gamma)
 
-    blurred = gaussian_blur(gamma_corrected, gaussian_ksize)
+    p = gaussian_blur(p, gaussian_ksize, gaussian_sigma)
 
-    blurred2 = average_blur(blurred, avg_ksize)
+    p = average_blur(p, avg_ksize)
 
-    boosted = high_boost(blurred2, blurred2)
+    # boosted = high_boost(blurred2, blurred2)
 
-    gradient = detect_gradient(boosted)
+    p = detect_gradient(p)
 
-    avg_smoothed = average_blur(gradient, [3, 3])
+    p = average_blur(p, [3, 3])
 
-    thresh = binarize(avg_smoothed)
+    p = binarize(p)
 
-    morphed = dilate(thresh, [21, 7], 4)
+    p = dilate(p, [21, 7], 4)
 
     # Shrink
-    new_width = int(morphed.shape[1] / 6)
-    new_height = int(morphed.shape[0] / 6)
+    x = p
+    new_width = int(p.shape[1] / 6)
+    new_height = int(p.shape[0] / 6)
 
-    shrunk = resize_image(morphed, new_width, new_height)
+    p = resize_image(p, new_width, new_height)
 
-    enlarged = resize_image(shrunk, morphed.shape[1], morphed.shape[0])
+    p = resize_image(p, x.shape[1], x.shape[0])
 
     # find the contours in the thresholded image, then sort the contours by their area, keeping only the largest one
-    (contours, _) = cv2.findContours(enlarged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    (contours, _) = cv2.findContours(p.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     c = sorted(contours, key=cv2.contourArea, reverse=True)[0]
 
     # compute the rotated bounding box of the largest contour
