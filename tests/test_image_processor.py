@@ -42,8 +42,3 @@ class Test(TestCase):
         f = self.mat.astype(np.float32)
         g = ip.average_blur(f, (9, 9))
         self.print_result(self.mat, g)
-
-    def test_load_laplacian_edges(self):
-        f = self.mat.astype(np.float32)
-        g = ip.laplacian_edges(f)
-        self.print_result(self.mat, g)

@@ -1,8 +1,15 @@
 import threading
 
-from ipcv import cvlib
+import cv2
+# from pyzbar.pyzbar import decode
+
 from camera import Camera
+from ipcv import cvlib
+from ipcv.scanner import Scanner
 from trace_handler import TraceHandler
+
+
+# from pyzbar.pyzbar import decode
 
 
 class JobController:
@@ -84,9 +91,32 @@ class JobController:
 
     def process_barcode(self, img):
         self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode ...')
-        annotated_img, cropped = cvlib.detect_barcode(img)
+
+        scanner = Scanner()
+        cropped = scanner.detect_barcode5(image=img,
+                                          gamma=0.5,
+                                          gaussian_ksize=(15, 15),
+                                          gaussian_sigma=2,
+                                          avg_ksize1=(9, 9),
+                                          avg_ksize2=(3, 3),
+                                          thresh_min=200,
+                                          dilate_kernel=[21, 7],
+                                          dilate_iteration=4,
+                                          shrink_factor=6)
+
         if cropped is not None:
+            self.decode_barcode(cropped)
             self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: OK')
-            self.process_callback(annotated_img, cropped)
+            self.process_callback(img, cropped)
         else:
             self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: KO')
+
+    def decode_barcode(self, img):
+        """
+        This function is used only to verify the detected barcode
+        :param img: The cropped image with barcode detected.
+        :return:
+        """
+        detector = cv2.barcode_BarcodeDetector()
+        decoded_text, points, barcode_type = detector.detectAndDecode(img)
+        self.trace.write(f"[{threading.currentThread().native_id}] Decoded: {decoded_text}")
