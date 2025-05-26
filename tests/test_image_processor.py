@@ -1,7 +1,7 @@
 from unittest import TestCase
 import numpy as np
 from scipy import stats as st
-import ipcv.image_processor as ip
+import ipcv.cvlib as ip
 
 
 class Test(TestCase):

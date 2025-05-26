@@ -7,7 +7,7 @@ from PyQt6.QtGui import QGuiApplication, QImage, QPixmap
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QHBoxLayout, QPushButton, QFileDialog, \
     QMessageBox
 
-from ipcv import image_processor
+from ipcv import cvlib
 from job_controller import JobController
 from widgets.scrolllable import ScrollLabel
 

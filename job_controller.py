@@ -1,6 +1,6 @@
 import threading
 
-from ipcv import image_processor
+from ipcv import cvlib
 from camera import Camera
 from trace_handler import TraceHandler
 
