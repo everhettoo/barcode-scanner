@@ -15,7 +15,8 @@ class Test(TestCase):
                                          thresh_min=200,
                                          dilate_kernel=(21, 7),
                                          dilate_iteration=4,
-                                         shrink_factor=6)
+                                         shrink_factor=6,
+                                         offset=0)
         barcode = scanner.decode_barcode(cropped)
         self.assertIsNotNone(barcode)
         print(barcode)

@@ -17,6 +17,7 @@ def detect_barcode(**kwargs):
     - dilate_kernel (tuple): The kernel size of structuring element used for dilation. E.g. (21,7) or (51,9).
     - dilate_iteration (uint): The number of interation the dilation is performed.
     - shrink_factor (uint):  The original image size is divided with shrink_factor to resize an image (shrinking).
+    - offset (uint):  The offest of the box to resize to.
     :return: The detected barcodes are annotated on the original image first, and cropped barcode is returned.
     """
 
@@ -48,7 +49,7 @@ def detect_barcode(**kwargs):
 
     p = cvlib.resize_image(p, x.shape[1], x.shape[0])
 
-    cropped = cvlib.get_prominent_contour(kwargs['image'], p)
+    cropped = cvlib.get_prominent_contour(kwargs['image'], p, kwargs['offset'])
 
     return cropped
 

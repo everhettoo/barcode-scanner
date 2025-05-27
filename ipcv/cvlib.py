@@ -95,11 +95,26 @@ def morph_dilate(image, iterations, ksize=None):
     return cv2.dilate(image, se, iterations=iterations)
 
 
-def get_prominent_contour(source_image, processed_image):
+def resize_box(box, offset):
+    """
+    Resizes the box according to the given offset and offset size.
+    :param box: The detected box to resize.
+    :param offset: The offset of the box to resize to.
+    :return: The resized box.
+    """
+    box[0] = box[0] - offset
+    box[1] = box[1] - offset
+    box[2] = box[2] + offset
+    box[3] = box[3] + offset
+    return box
+
+
+def get_prominent_contour(source_image, processed_image, offset=0):
     """
     Gets the prominent contour from the given processed image and draws a box on the source image.
     :param source_image: The source image to draw on.
     :param processed_image: The processed image to trace the biggest contour on.
+    :param offset: The offset of the box to resize to.
     :return: Returns the prominent contour.
     """
     contours, hierarchy = cv2.findContours(processed_image.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -109,11 +124,14 @@ def get_prominent_contour(source_image, processed_image):
     rect = cv2.minAreaRect(c)
     box = np.intp(cv2.boxPoints(rect))
 
+    # Increase the box offset for better detection.
+    box = resize_box(box, offset)
+
     # draw a bounding box rounded the detected barcode and display the image
     cv2.drawContours(source_image, [box], -1, (0, 255, 0), 3);
 
     [X, Y, W, H] = cv2.boundingRect(box)
-    cropped = source_image[Y:Y + H, X:X + W]
+    cropped = source_image[Y - offset:Y + H + offset, X + offset:X + W + offset]
 
     return cropped
 
