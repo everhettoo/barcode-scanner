@@ -68,18 +68,20 @@ def average_blur(image, ksize):
     return np.array(255 * (blurred / 255), dtype='uint8')
 
 
-def morph_close(image, ksize):
+def morph_close(image, ksize=None):
     """
     Performs close operation on the given image using the given kernel.
     :param image: The image to dilate.
     :param ksize: The size of the kernel to use.
     :return: The dilated image.
     """
-    se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
+    se = None
+    if ksize is not None:
+        se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
     return cv2.morphologyEx(image, cv2.MORPH_CLOSE, se)
 
 
-def morph_dilate(image, ksize, iterations):
+def morph_dilate(image, iterations, ksize=None):
     """
     Performs dilate operation on the given image using the given kernel.
     :param image: The image to dilate.
@@ -87,7 +89,9 @@ def morph_dilate(image, ksize, iterations):
     :param iterations: The number of iterations to perform.
     :return: The dilated image.
     """
-    se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
+    se = None
+    if ksize is not None:
+        se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
     return cv2.dilate(image, se, iterations=iterations)
 
 
@@ -104,6 +108,7 @@ def get_prominent_contour(source_image, processed_image):
     # compute the rotated bounding box of the largest contour
     rect = cv2.minAreaRect(c)
     box = np.intp(cv2.boxPoints(rect))
+
     # draw a bounding box rounded the detected barcode and display the image
     cv2.drawContours(source_image, [box], -1, (0, 255, 0), 3);
 
@@ -142,117 +147,3 @@ def binarize(image, min_val=127):
     """
     (_, thresh) = cv2.threshold(image, min_val, 255, cv2.THRESH_BINARY)
     return thresh
-
-
-def dilate(image, ksize, iteration):
-    """
-    Dilates the given image using the given kernel.
-    :param image: The image to dilate.
-    :param ksize: The size of the kernel to use.
-    :param iteration: The number of iterations to dilate.
-    :return: The dilated image.
-    """
-    se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
-    closed = cv2.morphologyEx(image, cv2.MORPH_CLOSE, se)
-    closed = cv2.dilate(closed, None, iterations=iteration)
-    return closed
-
-
-def detect_barcode2(image, gamma, gaussian_ksize, gaussian_sigma, avg_ksize, thresh_min):
-    # Convert to grayscale for processing.
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    p = adjust_gamma(gray, gamma)
-
-    p = gaussian_blur(p, gaussian_ksize, gaussian_sigma)
-
-    p = average_blur(p, avg_ksize)
-
-    # boosted = high_boost(blurred2, blurred2)
-
-    p = detect_gradient(p)
-
-    p = average_blur(p, [3, 3])
-
-    p = binarize(p)
-
-    p = dilate(p, [21, 7], 4)
-
-    # Shrink
-    x = p
-    new_width = int(p.shape[1] / 6)
-    new_height = int(p.shape[0] / 6)
-
-    p = resize_image(p, new_width, new_height)
-
-    p = resize_image(p, x.shape[1], x.shape[0])
-
-    # find the contours in the thresholded image, then sort the contours by their area, keeping only the largest one
-    (contours, _) = cv2.findContours(p.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    c = sorted(contours, key=cv2.contourArea, reverse=True)[0]
-
-    # compute the rotated bounding box of the largest contour
-    rect = cv2.minAreaRect(c)
-    box = np.intp(cv2.boxPoints(rect))
-    # draw a bounding box arounded the detected barcode and display the image
-    cv2.drawContours(image, [box], -1, (0, 255, 0), 3)
-
-    [X, Y, W, H] = cv2.boundingRect(box)
-    cropped = image[Y:Y + H, X:X + W]
-
-    return image, cropped
-
-### Deprecated
-#
-# def adjust_gamma3(image, gamma=1.0):
-#     # build a lookup table mapping the pixel values [0, 255] to their adjusted gamma values
-#     inv_gamma = 1.0 / gamma
-#     table = np.array([((i / 255.0) ** inv_gamma) * 255
-#                       for i in np.arange(0, 256)]).astype("uint8")
-#     # apply gamma correction using the lookup table
-#     return cv2.LUT(image, table)
-#
-#
-# def detect_barcode(image):
-#     # Convert to grayscale for processing.
-#     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-#
-#     # Find vertical lines (x-axis intensity change when y = 0).
-#     gradX = cv2.Sobel(gray, ddepth=cv2.CV_32F, dx=1, dy=0, ksize=-1)
-#
-#     # Find horizontal lines (y-axis intensity change when x = 0).
-#     gradY = cv2.Sobel(gray, ddepth=cv2.CV_32F, dx=0, dy=1, ksize=-1)
-#
-#     # subtract the y-gradient from the x-gradient
-#     gradient = cv2.subtract(gradX, gradY)
-#
-#     # Converts negative values to absolute values |x|.
-#     gradient = cv2.convertScaleAbs(gradient)
-#
-#     # blur and threshold the image
-#     blurred = cv2.blur(gradient, (3, 3))
-#     (_, thresh) = cv2.threshold(blurred, 225, 255, cv2.THRESH_BINARY)
-#
-#     # construct a closing kernel and apply it to the thresholded image
-#     se = cv2.getStructuringElement(cv2.MORPH_RECT, (21, 7))
-#     closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, se)
-#
-#     # perform a series of erosions and dilations
-#     closed = cv2.erode(closed, None, iterations=4)
-#     closed = cv2.dilate(closed, None, iterations=4)
-#
-#     # find the contours in the thresholded image, then sort the contours by their area, keeping only the largest one
-#     (cnts, _) = cv2.findContours(closed.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-#     c = sorted(cnts, key=cv2.contourArea, reverse=True)[0]
-#     # compute the rotated bounding box of the largest contour
-#     rect = cv2.minAreaRect(c)
-#     box = np.intp(cv2.boxPoints(rect))
-#     # draw a bounding box arounded the detected barcode and display the
-#     # image
-#     cv2.drawContours(image, [box], -1, (0, 255, 0), 3)
-#
-#     [X, Y, W, H] = cv2.boundingRect(box)
-#
-#     cropped = image[Y:Y + H, X:X + W]
-#
-#     return image, cropped
