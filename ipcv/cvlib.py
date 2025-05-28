@@ -68,12 +68,25 @@ def average_blur(image, ksize):
     return np.array(255 * (blurred / 255), dtype='uint8')
 
 
+def morph_open(image, ksize=None):
+    """
+    Performs open operation on the given image using the given kernel.
+    :param image: The image to perform open operation on.
+    :param ksize: The size of the kernel to use.
+    :return: The opened image.
+    """
+    se = None
+    if ksize is not None:
+        se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
+    return cv2.morphologyEx(image, cv2.MORPH_OPEN, se)
+
+
 def morph_close(image, ksize=None):
     """
     Performs close operation on the given image using the given kernel.
-    :param image: The image to dilate.
+    :param image: The image to perform close operation on.
     :param ksize: The size of the kernel to use.
-    :return: The dilated image.
+    :return: The closed image.
     """
     se = None
     if ksize is not None:
@@ -93,6 +106,20 @@ def morph_dilate(image, iterations, ksize=None):
     if ksize is not None:
         se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
     return cv2.dilate(image, se, iterations=iterations)
+
+
+def morph_erode(image, iterations, ksize=None):
+    """
+    Performs erode operation on the given image using the given kernel.
+    :param image: The image to erode.
+    :param ksize: The size of the kernel to use.
+    :param iterations: The number of iterations to perform.
+    :return: The eroded image.
+    """
+    se = None
+    if ksize is not None:
+        se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
+    return cv2.erode(image, se, iterations=iterations)
 
 
 def resize_box(box, offset):

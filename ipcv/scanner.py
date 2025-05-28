@@ -3,6 +3,34 @@ import cv2
 from ipcv import cvlib
 
 
+def preprocess(image, gamma, gaussian_ksize, gaussian_sigma):
+    # Adjust the contrast
+    p = cvlib.adjust_gamma(image, gamma)
+
+    # Convert image to gray scale for processing.
+    p = cvlib.convert_rgb2gray(p)
+
+    # Remove noise.
+    p = cvlib.gaussian_blur(p, gaussian_ksize, gaussian_sigma)
+
+    return p
+
+
+def detect_qrcode(**kwargs):
+    p = kwargs['image'].copy()
+    p = cvlib.binarize(p, kwargs['thresh_min'])
+
+    ksize = (13,13)
+    iteration = 5
+    p = cvlib.morph_close(p, ksize)
+    p = cvlib.morph_open(p, ksize)
+    p = cvlib.morph_dilate(p, iteration, ksize)
+    p = cvlib.morph_erode(p, iteration)
+
+    contours, _ = cv2.findContours(p, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+
+
 def detect_barcode(**kwargs):
     """
     Processed the given image to detect barcode using the following parameters:.
