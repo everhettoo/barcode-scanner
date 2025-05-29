@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 from ipcv import cvlib
 
@@ -20,7 +21,7 @@ def detect_qrcode(**kwargs):
     p = kwargs['image'].copy()
     p = cvlib.binarize(p, kwargs['thresh_min'])
 
-    ksize = (13,13)
+    ksize = (13, 13)
     iteration = 5
     p = cvlib.morph_close(p, ksize)
     p = cvlib.morph_open(p, ksize)
@@ -29,6 +30,43 @@ def detect_qrcode(**kwargs):
 
     contours, _ = cv2.findContours(p, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+
+def detect_barcode_v2(**kwargs):
+    """
+    Processed the given image to detect barcode using the following parameters:.
+    :param kwargs:
+    - image (matrix): Image in which the barcode needs to be detected.
+    - gamma (float): A number to set the gamma value.
+    - gaussian_ksize (tuple): The gaussian kernel size used for smoothing an image. E.g. (3,3) or (9,9).
+    - gaussian_sigma (float): The gaussian_sigma used for smoothing an image.
+    - avg_ksize1 (tuple): The kernel size used for the first average smoothing. E.g. (3,3) or (9,9).
+    - avg_ksize2 (tuple): The kernel size used for the second average smoothing. E.g. (3,3) or (9,9).
+    - thresh_min (uint): The threshold value for binarizing an image.
+    - dilate_kernel (tuple): The kernel size of structuring element used for dilation. E.g. (21,7) or (51,9).
+    - dilate_iteration (uint): The number of interation the dilation is performed.
+    - shrink_factor (uint):  The original image size is divided with shrink_factor to resize an image (shrinking).
+    - offset (uint):  The offest of the box to resize to.
+    :return: The detected barcodes are annotated on the original image first, and cropped barcode is returned.
+    """
+
+    p = cvlib.convert_rgb2gray(kwargs['image'])
+
+    p = cvlib.adjust_gamma(p, kwargs['gamma'])
+
+    p = cvlib.gaussian_blur(p, kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+
+    # p = cv2.threshold(p, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    p = cvlib.binarize_inv(p, kwargs['thresh_min'])
+
+    se = np.array([
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ])
+
+    p = cv2.dilate(p, se, iterations=kwargs['dilate_iteration'])
+
+    cropped = cvlib.get_prominent_contour(kwargs['image'], p, kwargs['offset'])
+
+    return cropped
 
 
 def detect_barcode(**kwargs):

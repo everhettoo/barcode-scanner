@@ -192,3 +192,14 @@ def binarize(image, min_val=127):
     """
     (_, thresh) = cv2.threshold(image, min_val, 255, cv2.THRESH_BINARY)
     return thresh
+
+def binarize_inv(image, min_val=127):
+    """
+    Binarize the given image with a given minimum threshold value.
+    :param image: The image to binarize.
+    :param min_val: Any value below this threshold will be set to 0.
+    :return: A binarized image.
+    """
+    (_, thresh) = cv2.threshold(image, min_val, 255, cv2.THRESH_BINARY_INV)
+    return thresh
+
