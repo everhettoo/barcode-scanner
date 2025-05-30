@@ -1,4 +1,5 @@
 from math import ceil
+from pickletools import uint8
 
 import cv2
 import numpy as np
@@ -9,9 +10,11 @@ from ipcv import cvlib
 BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
+BLACK = 0
+WHITE = 255
 
 
-def preprocess(image, gamma, gaussian_ksize, gaussian_sigma):
+def preprocess_image(image, gamma, gaussian_ksize, gaussian_sigma):
     # Adjust the contrast
     p = cvlib.adjust_gamma(image, gamma)
 
@@ -70,61 +73,89 @@ def crop_roi(image, max_contour, color):
     return image[y:y + h, x:x + w]
 
 
-def perpendicular(angle):
-    print(f'angle:{angle}')
+def is_perpendicular_angle(angle):
+    # print(f'angle:{angle}')
     if abs(90 - angle) < 10:
         return True
     else:
         return False
 
 
-def find_rectangle(source_img, processed_img):
+def rectangle_coordinates(approx):
+    """
+    Reshapes the approx coordinates of a rectangle inside a list-of-list to flat-list and returns the four coordinates.
+    :param approx: Coordinates of a most-likely rectangle.
+    :return: Four coordinates.
+    """
+    coordinates = approx.reshape(4, 2)
+    return coordinates[0], coordinates[1], coordinates[2], coordinates[3]
+
+
+def find_rectangle(source_img, processed_img, min_area_factor, box=False, draw=False):
     contours, _ = cv2.findContours(processed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     image_area = processed_img.shape[0] * processed_img.shape[1]
-    required_aspect_ration = image_area / 30
+    min_required_area = image_area * min_area_factor
 
     print(f'Image Area          : {image_area:,}')
-    print(f'Min required area   : {required_aspect_ration:,}')
-    print(f'Number of contours  : {len(contours)}\n')
+    print(f'Min required area   : {min_required_area:,.2f} (at {min_area_factor} rate)')
+    print(f'Number of contours  : {len(contours)}')
 
-    max_contour = None
-    max_area = 0
+    selected_max_contour = None
+    selected_max_area = 0
+
+    # Epsilon: is maximum distance from contour to approximated contour.
+    # eps = 0.04
+    eps = 0.0391
+    # eps = 0.05
+    # Contour has coordinates for drawing the detected shape (polygons - can be more than 3 or 4)
     for contour in contours:
-        # print(f'\nContour len: {len(contour)}')
+        # Contour-perimeter: calculates the perimeter for the given points when it's a closed lines.
         perimeter = cv2.arcLength(contour, True)
-        approx = cv2.approxPolyDP(contour, 0.04 * perimeter, True)
-        # print(f'Approx len: {len(approx)}')
-        cv2.drawContours(source_img, [approx], -1, GREEN, 3)
+
+        # Ramer–Douglas–Peucker algorithm: It approximates a contour shape to another shape with reduced vertices
+        # depending upon the precision of epsilon. So, coordinates for polygons are returned.
+        approx = cv2.approxPolyDP(contour, eps * perimeter, True)
+        if draw: cv2.drawContours(source_img, [approx], -1, GREEN, 3)
+
+        # Only polygons with 4 angles are considered since a box or rectangle is needed.
         if len(approx) == 4:
-            area = cv2.contourArea(contour)
-            print(f'Calculated area : {area:,}')
+            calculated_area = cv2.contourArea(contour)
+            # print(f'\nCalculated area : {calculated_area:,.2f} A=({coordinates[0][0]},{coordinates[0][1]})')
 
-            (x, y, w, h) = cv2.boundingRect(approx)
+            # Retrieve the four coordinates (of a most-likely rectangle) to verify if it is a rectangle.
+            [a, b, c, d] = rectangle_coordinates(approx)
+            print(
+                f'\nCalculated area    : {calculated_area:,.2f}, Coordinates (X,Y)=[A=({a}), B=({b}), C=({c}), D=({d})]')
 
-            coordinates = approx.reshape(4, 2)
-            a = coordinates[0]
-            b = coordinates[1]
-            c = coordinates[2]
-            d = coordinates[3]
+            if (is_perpendicular_angle(calculate_angle(a, b, c))
+                    and is_perpendicular_angle(calculate_angle(b, c, d))
+                    and is_perpendicular_angle(calculate_angle(c, d, a))
+                    and is_perpendicular_angle(calculate_angle(d, a, b))):
 
-            if perpendicular(calculate_angle(a, b, c)) and perpendicular(calculate_angle(b, c, d)) and perpendicular(
-                    calculate_angle(c, d, a)) and perpendicular(calculate_angle(d, a, b)):
+                (x, y, w, h) = cv2.boundingRect(approx)
+                calculated_aspect_ratio = w / float(h)
+                print(f'Calculated ratio   : {calculated_aspect_ratio:,.2f}')
 
-                aspect_ratio = w / float(h)
-                print(f'Calculated ratio: {aspect_ratio:,}')
+                # Selecting the coordinates that fulfills min required area for box and rectangle.
+                if box:
+                    if calculated_area > min_required_area and 0.8 <= calculated_aspect_ratio <= 1.2:
+                        if calculated_area > selected_max_area:
+                            selected_max_area = calculated_area
+                            print(
+                                f'Selected max-area : {selected_max_area:,.2f} '
+                                f'at rated={(selected_max_area / image_area) * 100:.2f}%\n')
+                            selected_max_contour = contour
+                else:
+                    if calculated_area > min_required_area and calculated_aspect_ratio > 1.2:
+                        if calculated_area > selected_max_area:
+                            selected_max_area = calculated_area
+                            print(
+                                f'Selected max-area : {selected_max_area:,.2f} '
+                                f'at rated={(selected_max_area / image_area) * 100:.2f}%\n')
+                            selected_max_contour = contour
 
-                # Ensure the QR-Code is a box shaped (max ratio of w:h = 1.2:1)
-                # AND min area => 12 x 10
-                # if area > 100 and 0.8 <= aspect_ratio <= 1.2:
-                # if area > required_aspect_ration and 0.8 <= aspect_ratio <= 1.2:
-                if area > required_aspect_ration and aspect_ratio > 1.2:
-                    if area > max_area:
-                        max_area = area
-                        print(f'Max-Area: {max_area:,}')
-                        max_contour = contour
-            print('\r')
-    return max_contour
+    return selected_max_contour
 
 
 def proportionate_close(image, dilate_iteration, erode_iteration):
@@ -137,25 +168,175 @@ def proportionate_close(image, dilate_iteration, erode_iteration):
         [1]
     ])
     image = cv2.dilate(image, horizontal_se, iterations=dilate_iteration)
-    image = cv2.dilate(image, vertical_se, iterations=erode_iteration)
+    image = cv2.erode(image, vertical_se, iterations=erode_iteration)
     return image
 
 
-def detect_barcode_v2(**kwargs):
-    cropped = None
-    # source_img = kwargs['image'].copy()
-    # p = kwargs['image'].copy()
-    p = preprocess(kwargs['image'], kwargs['gamma'], kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
-    p = cvlib.binarize_inv(p, kwargs['thresh_min'])
+def pixel_percentage(image, color):
+    return np.sum(image == color) / (image.shape[0] * image.shape[1]) * 100
 
-    # 4:1 (dilate:erosion)
-    erode_iteration = ceil(kwargs['iteration'] * 1)
-    for i in range(1, 10):
-        p = proportionate_close(p, kwargs['iteration'], erode_iteration)
-        contour = find_rectangle(kwargs['image'], p)
-        if contour is not None:
-            cropped = crop_roi(kwargs['image'], contour, BLUE)
-            break
+
+def adjust_threshold(i, threshold_cnt, limit_cnt, min_threshold, threshold_inc_rate, black_pixels, white_pixels,
+                     max_pixel_limit):
+    if threshold_cnt == 3 or limit_cnt == 3:
+        return min_threshold, threshold_cnt, limit_cnt, True
+
+    if min_threshold > 254 or black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
+        if min_threshold > 254:
+            threshold_cnt = threshold_cnt + 1
+        else:
+            limit_cnt = limit_cnt + 1
+        return min_threshold, threshold_cnt, limit_cnt, False
+    else:
+        if i > 1:
+            thresh = ceil(min_threshold + (min_threshold * ((i - 1) * threshold_inc_rate)))
+            if thresh > 254 or black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
+                if thresh > 254:
+                    threshold_cnt = threshold_cnt + 1
+                else:
+                    limit_cnt = limit_cnt + 1
+            return min_threshold, threshold_cnt, limit_cnt, False
+
+        else:
+            return min_threshold, threshold_cnt, limit_cnt, False
+
+
+def detect_barcode_v2(**kwargs):
+    attempt_limit = 19
+    max_pixel_limit = 97
+    threshold_inc_rate = 0.2
+    iteration_rate = 0.5
+
+    min_threshold = int(kwargs['thresh_min'])
+    # threshold_exceeded = False
+    cropped = None
+    thresh_exceeded = False
+
+    p = None
+
+    pre = preprocess_image(kwargs['image'], kwargs['gamma'], kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+    image_size = kwargs['image'].shape[0] * kwargs['image'].shape[1]
+    print(f'Image               : image-size={image_size:,}, [RXC]=[{pre.shape[0]:,} X {pre.shape[1]:,}]')
+
+    current_threshold = kwargs['thresh_min']
+    black_pixels = 0
+    white_pixels = 0
+    thresh_cnt = 0
+    limit_cnt = 0
+    for i in range(1, attempt_limit):
+        # If thresh_exceeded, then the interation will continue with 230 or 245 until fails 3 times.
+
+        if not thresh_exceeded:
+            # current_threshold, thresh_exceeded = adjust_threshold(i, min_threshold, threshold_inc_rate)
+            p = cvlib.binarize_inv(pre, current_threshold)
+
+            black_pixels = ceil(pixel_percentage(p, BLACK))
+            white_pixels = ceil(pixel_percentage(p, WHITE))
+
+            if (black_pixels > max_pixel_limit or white_pixels > max_pixel_limit
+                    or current_threshold > 254):
+                current_threshold, thresh_cnt, limit_cnt, thresh_exceeded = adjust_threshold(i, thresh_cnt, limit_cnt,
+                                                                                             min_threshold,
+                                                                                             threshold_inc_rate,
+                                                                                             black_pixels,
+                                                                                             white_pixels,
+                                                                                             max_pixel_limit)
+
+                print(f'{[i]} --Binarize      : threshold exceeded {max_pixel_limit:}% '
+                      f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
+                      f'white={white_pixels:,.2f}%], cnt={thresh_cnt:,}. Adjusted={current_threshold:,} for re-attempt!')
+
+                # Adjusting the blown binarization with adjusted parameters.
+                p = cvlib.binarize_inv(p, current_threshold)
+
+                # # Update pixel counts for accurate trace.
+                # black_pixels = ceil(pixel_percentage(p, BLACK))
+                # white_pixels = ceil(pixel_percentage(p, WHITE))
+            else:
+                print(f'{[i]} --Binarize      : at min-thresh={current_threshold:,}, '
+                      f'black={black_pixels:,.2f}%, '
+                      f'white={white_pixels:,.2f}%, cnt={thresh_cnt:,}')
+
+                current_threshold, thresh_cnt, limit_cnt, thresh_exceeded = adjust_threshold(i, thresh_cnt, limit_cnt,
+                                                                                             min_threshold,
+                                                                                             threshold_inc_rate,
+                                                                                             black_pixels,
+                                                                                             white_pixels,
+                                                                                             max_pixel_limit)
+
+
+        else:
+            if thresh_cnt == 3:
+                print(f'{[i]} --Binarize(254): threshold exceeded {max_pixel_limit:}% '
+                      f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
+                      f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}.')
+            elif limit_cnt == 3:
+                print(f'{[i]} --Binarize(97%): threshold exceeded {max_pixel_limit:}% '
+                      f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
+                      f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}.')
+
+        #     if not thresh_exceeded and thresh_exceed_cnt > 0:
+        #         thresh_exceed_cnt = thresh_exceed_cnt - 1
+        #     else:
+        #         thresh_exceed_cnt = thresh_exceed_cnt + 1
+        #
+        # if thresh_exceed_cnt > 3:
+        #     skip_thresh = True
+        # else:
+        #     thresh_exceeded = False
+
+    # elif current_threshold > 255:
+    #     current_threshold = adjust_threshold(i, min_threshold, threshold_inc_rate)
+    #     # Adjusting the binarization
+    #     p = cvlib.binarize_inv(p, current_threshold)
+    #     print(
+    #         f'{[i]} --Binarize     : threshold exceeded {max_pixel_limit:}% at min-threshold={current_threshold:,}, '
+    #         f'black={black_pixels:,.2f}%, '
+    #         f'white={white_pixels:,.2f}%. Adjusted={current_threshold:,} for re-attempt!')
+    #
+    # # Increase threshold
+    # current_threshold = ceil(min_threshold + (min_threshold * (i * threshold_inc_rate)))
+    # p = cvlib.binarize_inv(p, current_threshold)
+    # print(f'[{i}] --Binarize   : at min-thresh={current_threshold:,}, '
+    #       f'black={pixel_percentage(p, BLACK):,.2f}%, '
+    #       f'white={pixel_percentage(p, WHITE):,.2f}%,')
+
+    # --------Remove
+    # Once threshold exceed
+    # if not threshold_exceeded:
+    #     if (pixel_percentage(p, BLACK) > max_pixel_limit
+    #             or pixel_percentage(p, WHITE) > max_pixel_limit):
+    #         print(f'Threshold exceeded at min-threshold: {min_threshold:,.2f}, '
+    #               f'black={pixel_percentage(p, BLACK):,.2f}%,'
+    #               f'white={pixel_percentage(p, WHITE):,.2f}%')
+    #         threshold_exceeded = True
+    # # Revert to previous threshold
+    # if i > 1:
+    #     min_threshold = min_threshold + (min_threshold * (((i - 1) / 2) * threshold_inc_rate))
+    # else:
+    #     min_threshold = kwargs['thresh_min']
+    # ------------
+
+    # # 4:1 (dilate:erosion)
+    # iteration = kwargs['iteration']
+    # iteration = ceil(iteration + (iteration * i * 0.1))
+    # erode_iteration = ceil(iteration * iteration_rate)
+    # print(
+    #     f'[{i}] --Iteration : at iteration-rate={iteration_rate:,}, '
+    #     f'dilate-interation={iteration:,}, '
+    #     f'erode-interation={erode_iteration:,}')
+    # print('---------->')
+    #
+    # p = proportionate_close(p, iteration, erode_iteration)
+    #
+    # contour = find_rectangle(source_img=kwargs['image'],
+    #                          processed_img=p,
+    #                          min_area_factor=kwargs['min_area_factor'],
+    #                          box=kwargs['box'],
+    #                          draw=False)
+    # if contour is not None:
+    #     cropped = crop_roi(kwargs['image'], contour, BLUE)
+    #     break
     return p
 
 
