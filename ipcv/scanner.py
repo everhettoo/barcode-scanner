@@ -94,11 +94,13 @@ def rectangle_coordinates(approx):
 def find_rectangle(source_img, processed_img, min_area_factor, box=False, draw=False):
     contours, _ = cv2.findContours(processed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+    # contours = sorted(contours_a, key=cv2.contourArea, reverse=True)[1]
+
     image_area = processed_img.shape[0] * processed_img.shape[1]
     min_required_area = image_area * min_area_factor
 
-    print(f'Image Area          : {image_area:,}')
-    print(f'Min required area   : {min_required_area:,.2f} (at {min_area_factor} rate)')
+    print(f'Image Area          : {image_area:,}, box={box}')
+    print(f'Min required area   : {min_required_area:,.2f} ({min_area_factor} rate), should be > {(min_required_area/image_area)*100:.2f}%')
     print(f'Number of contours  : {len(contours)}')
 
     selected_max_contour = None
@@ -121,7 +123,6 @@ def find_rectangle(source_img, processed_img, min_area_factor, box=False, draw=F
         # Only polygons with 4 angles are considered since a box or rectangle is needed.
         if len(approx) == 4:
             calculated_area = cv2.contourArea(contour)
-            # print(f'\nCalculated area : {calculated_area:,.2f} A=({coordinates[0][0]},{coordinates[0][1]})')
 
             # Retrieve the four coordinates (of a most-likely rectangle) to verify if it is a rectangle.
             [a, b, c, d] = rectangle_coordinates(approx)
@@ -144,7 +145,7 @@ def find_rectangle(source_img, processed_img, min_area_factor, box=False, draw=F
                             selected_max_area = calculated_area
                             print(
                                 f'Selected max-area : {selected_max_area:,.2f} '
-                                f'at rated={(selected_max_area / image_area) * 100:.2f}%\n')
+                                f'at rate={(selected_max_area / image_area) * 100:.2f}%\n')
                             selected_max_contour = contour
                 else:
                     if calculated_area > min_required_area and calculated_aspect_ratio > 1.2:
@@ -152,9 +153,8 @@ def find_rectangle(source_img, processed_img, min_area_factor, box=False, draw=F
                             selected_max_area = calculated_area
                             print(
                                 f'Selected max-area : {selected_max_area:,.2f} '
-                                f'at rated={(selected_max_area / image_area) * 100:.2f}%\n')
+                                f'at rate={(selected_max_area / image_area) * 100:.2f}%\n')
                             selected_max_contour = contour
-
     return selected_max_contour
 
 
@@ -202,7 +202,7 @@ def adjust_threshold(i, threshold_cnt, limit_cnt, min_threshold, threshold_inc_r
 
 
 def detect_barcode_v2(**kwargs):
-    attempt_limit = 19
+    attempt_limit = int(kwargs['attempt_limit'])
     max_pixel_limit = 97
     threshold_inc_rate = 0.2
     iteration_rate = 0.5
@@ -224,35 +224,12 @@ def detect_barcode_v2(**kwargs):
     thresh_cnt = 0
     limit_cnt = 0
     for i in range(1, attempt_limit):
-        # If thresh_exceeded, then the interation will continue with 230 or 245 until fails 3 times.
-
         if not thresh_exceeded:
-            # current_threshold, thresh_exceeded = adjust_threshold(i, min_threshold, threshold_inc_rate)
             p = cvlib.binarize_inv(pre, current_threshold)
 
             black_pixels = ceil(pixel_percentage(p, BLACK))
             white_pixels = ceil(pixel_percentage(p, WHITE))
 
-            # if (black_pixels > max_pixel_limit or white_pixels > max_pixel_limit
-            #         or current_threshold > 254):
-            #     current_threshold, thresh_cnt, limit_cnt, thresh_exceeded = adjust_threshold(i, thresh_cnt, limit_cnt,
-            #                                                                                  min_threshold,
-            #                                                                                  threshold_inc_rate,
-            #                                                                                  black_pixels,
-            #                                                                                  white_pixels,
-            #                                                                                  max_pixel_limit)
-            #
-            #     print(f'{[i]} --Binarize      : threshold exceeded {max_pixel_limit:}% '
-            #           f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
-            #           f'white={white_pixels:,.2f}%], cnt={thresh_cnt:,}. Adjusted={current_threshold:,} for re-attempt!')
-            #
-            #     # Adjusting the blown binarization with adjusted parameters.
-            #     p = cvlib.binarize_inv(p, current_threshold)
-            #
-            #     # # Update pixel counts for accurate trace.
-            #     # black_pixels = ceil(pixel_percentage(p, BLACK))
-            #     # white_pixels = ceil(pixel_percentage(p, WHITE))
-            # else:
             print(f'{[i]} --Binarize      : at min-thresh={current_threshold:,}, '
                   f'black={black_pixels:,.2f}%, '
                   f'white={white_pixels:,.2f}%, thresh-cnt={thresh_cnt:,}, limit-cnt={limit_cnt:,}')
@@ -263,8 +240,6 @@ def detect_barcode_v2(**kwargs):
                                                                                          black_pixels,
                                                                                          white_pixels,
                                                                                          max_pixel_limit)
-
-
         else:
             if thresh_cnt == 3:
                 print(f'{[i]} --Binarize(254): threshold exceeded {max_pixel_limit:}% '
@@ -275,27 +250,29 @@ def detect_barcode_v2(**kwargs):
                       f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
                       f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}, limit-cnt={limit_cnt:,}.')
 
-        # # 4:1 (dilate:erosion)
-        # iteration = kwargs['iteration']
-        # iteration = ceil(iteration + (iteration * i * 0.1))
-        # erode_iteration = ceil(iteration * iteration_rate)
-        # print(
-        #     f'[{i}] --Iteration : at iteration-rate={iteration_rate:,}, '
-        #     f'dilate-interation={iteration:,}, '
-        #     f'erode-interation={erode_iteration:,}')
-        # print('---------->')
-        #
-        # p = proportionate_close(p, iteration, erode_iteration)
-        #
-        # contour = find_rectangle(source_img=kwargs['image'],
-        #                          processed_img=p,
-        #                          min_area_factor=kwargs['min_area_factor'],
-        #                          box=kwargs['box'],
-        #                          draw=False)
-        # if contour is not None:
-        #     cropped = crop_roi(kwargs['image'], contour, BLUE)
-        #     break
-    return p
+        # Dilate:erosion rate is 4:1
+        iteration = kwargs['iteration']
+        iteration = ceil(iteration + (iteration * i * 0.1))
+        erode_iteration = ceil(iteration * iteration_rate)
+        print(
+            f'[{i}] --Iteration    : at iteration-rate={iteration_rate:,}, '
+            f'dilate-interation={iteration:,}, '
+            f'erode-interation={erode_iteration:,}')
+        print('---------->')
+
+        p = proportionate_close(p, iteration, erode_iteration)
+
+        contour = find_rectangle(source_img=kwargs['image'],
+                                 processed_img=p,
+                                 min_area_factor=kwargs['min_area_factor'],
+                                 box=kwargs['box'],
+                                 draw=False)
+        if contour is not None:
+            cropped = crop_roi(kwargs['image'], contour, GREEN)
+            break
+
+        print('---------->\n')
+    return cropped
 
 
 def detect_barcode(**kwargs):
