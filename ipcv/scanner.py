@@ -91,7 +91,7 @@ def rectangle_coordinates(approx):
     return coordinates[0], coordinates[1], coordinates[2], coordinates[3]
 
 
-def find_rectangle(source_img, processed_img, min_area_factor, box=False, draw=False):
+def find_rectangle(source_img, processed_img, min_area_factor, box=False, draw=False, verbose=False):
     contours, _ = cv2.findContours(processed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # contours = sorted(contours_a, key=cv2.contourArea, reverse=True)[1]
@@ -100,7 +100,8 @@ def find_rectangle(source_img, processed_img, min_area_factor, box=False, draw=F
     min_required_area = image_area * min_area_factor
 
     print(f'Image Area          : {image_area:,}, box={box}')
-    print(f'Min required area   : {min_required_area:,.2f} ({min_area_factor} rate), should be > {(min_required_area/image_area)*100:.2f}%')
+    print(
+        f'Min required area   : {min_required_area:,.2f} ({min_area_factor} rate), should be > {(min_required_area / image_area) * 100:.2f}%')
     print(f'Number of contours  : {len(contours)}')
 
     selected_max_contour = None
@@ -126,8 +127,9 @@ def find_rectangle(source_img, processed_img, min_area_factor, box=False, draw=F
 
             # Retrieve the four coordinates (of a most-likely rectangle) to verify if it is a rectangle.
             [a, b, c, d] = rectangle_coordinates(approx)
-            print(
-                f'\nCalculated area    : {calculated_area:,.2f}, Coordinates (X,Y)=[A=({a}), B=({b}), C=({c}), D=({d})]')
+            if verbose:
+                print(f'\nCalculated area    : {calculated_area:,.2f}, '
+                      f'Coordinates (X,Y)=[A=({a}), B=({b}), C=({c}), D=({d})]')
 
             if (is_perpendicular_angle(calculate_angle(a, b, c))
                     and is_perpendicular_angle(calculate_angle(b, c, d))
@@ -136,7 +138,8 @@ def find_rectangle(source_img, processed_img, min_area_factor, box=False, draw=F
 
                 (x, y, w, h) = cv2.boundingRect(approx)
                 calculated_aspect_ratio = w / float(h)
-                print(f'Calculated ratio   : {calculated_aspect_ratio:,.2f}')
+                if verbose:
+                    print(f'Calculated ratio   : {calculated_aspect_ratio:,.2f}')
 
                 # Selecting the coordinates that fulfills min required area for box and rectangle.
                 if box:
@@ -176,36 +179,35 @@ def pixel_percentage(image, color):
     return np.sum(image == color) / (image.shape[0] * image.shape[1]) * 100
 
 
-def adjust_threshold(i, threshold_cnt, limit_cnt, min_threshold, threshold_inc_rate, black_pixels, white_pixels,
-                     max_pixel_limit):
-    if threshold_cnt == 3 or limit_cnt == 3 or (threshold_cnt + limit_cnt == 3) > 3:
-        return min_threshold, threshold_cnt, limit_cnt, True
+def adjust_threshold(i, min_threshold, threshold_inc_rate, black_pixels, white_pixels, max_pixel_limit):
+    # if threshold_cnt == 3 or limit_cnt == 3 or (threshold_cnt + limit_cnt == 3) > 3:
+    #     return min_threshold, threshold_cnt, limit_cnt, True
 
     if min_threshold > 254 or black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
-        if min_threshold > 254:
-            threshold_cnt = threshold_cnt + 1
-        else:
-            limit_cnt = limit_cnt + 1
-        return min_threshold, threshold_cnt, limit_cnt, False
+        # Reduce 20% of the threshold.
+        thresh = ceil(min_threshold + (min_threshold * (i * threshold_inc_rate)))
+        thresh = ceil(thresh - (thresh * 0.2))
+        return thresh, True
     else:
         if i > 1:
             thresh = ceil(min_threshold + (min_threshold * ((i - 1) * threshold_inc_rate)))
-            if thresh > 254 or black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
-                if thresh > 254:
-                    threshold_cnt = threshold_cnt + 1
-                else:
-                    limit_cnt = limit_cnt + 1
-            return thresh, threshold_cnt, limit_cnt, False
-
+            if thresh > 254:
+                # Reduce 15% of the threshold.
+                return ceil(thresh - (thresh * 0.2)), True
+            else:
+                return thresh, False
         else:
-            return min_threshold, threshold_cnt, limit_cnt, False
+            # Exceeded on the first count? Then, reduce 20% of the threshold.
+            thresh = ceil(min_threshold + (min_threshold * (i * threshold_inc_rate)))
+            thresh = ceil(thresh - (thresh * 0.2))
+            return thresh, True
 
 
 def detect_barcode_v2(**kwargs):
     attempt_limit = int(kwargs['attempt_limit'])
     max_pixel_limit = 97
     threshold_inc_rate = 0.2
-    iteration_rate = 0.5
+    iteration_rate = kwargs['iteration_rate']
 
     min_threshold = int(kwargs['thresh_min'])
     # threshold_exceeded = False
@@ -230,32 +232,47 @@ def detect_barcode_v2(**kwargs):
             black_pixels = ceil(pixel_percentage(p, BLACK))
             white_pixels = ceil(pixel_percentage(p, WHITE))
 
-            print(f'{[i]} --Binarize      : at min-thresh={current_threshold:,}, '
-                  f'black={black_pixels:,.2f}%, '
-                  f'white={white_pixels:,.2f}%, thresh-cnt={thresh_cnt:,}, limit-cnt={limit_cnt:,}')
+            # No logic processing, only for displaying.
+            if black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
+                print(f'{[i]} --Binarize(254): [In] threshold exceeded {max_pixel_limit:}% '
+                      f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
+                      f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}, limit-cnt={limit_cnt:,}.')
+            elif min_threshold > 254:
+                print(f'{[i]} --Binarize(97%): [In] threshold exceeded {max_pixel_limit:}% '
+                      f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
+                      f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}, limit-cnt={limit_cnt:,}.')
+            else:
+                print(f'{[i]} --Binarize      : at min-thresh={current_threshold:,}, '
+                      f'black={black_pixels:,.2f}%, '
+                      f'white={white_pixels:,.2f}%, thresh-cnt={thresh_cnt:,}, limit-cnt={limit_cnt:,}')
 
-            current_threshold, thresh_cnt, limit_cnt, thresh_exceeded = adjust_threshold(i, thresh_cnt, limit_cnt,
-                                                                                         min_threshold,
-                                                                                         threshold_inc_rate,
-                                                                                         black_pixels,
-                                                                                         white_pixels,
-                                                                                         max_pixel_limit)
+            current_threshold, thresh_exceeded = adjust_threshold(i,
+                                                                  min_threshold,
+                                                                  threshold_inc_rate,
+                                                                  black_pixels,
+                                                                  white_pixels,
+                                                                  max_pixel_limit)
         else:
-            if thresh_cnt == 3:
-                print(f'{[i]} --Binarize(254): threshold exceeded {max_pixel_limit:}% '
-                      f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
-                      f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}, limit-cnt={limit_cnt:,}.')
-            elif limit_cnt == 3:
-                print(f'{[i]} --Binarize(97%): threshold exceeded {max_pixel_limit:}% '
-                      f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
-                      f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}, limit-cnt={limit_cnt:,}.')
+            black_pixels = ceil(pixel_percentage(p, BLACK))
+            white_pixels = ceil(pixel_percentage(p, WHITE))
+            print(
+                f'{[i]} --Binarize(skip): [Out] threshold exceeded {max_pixel_limit:}%; indefinite-adjustment:'
+                f'min-threshold={current_threshold:,}; [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%].')
+            # if thresh_cnt == 3:
+            #     print(f'{[i]} --Binarize(254): [Out] threshold exceeded {max_pixel_limit:}% '
+            #           f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
+            #           f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}, limit-cnt={limit_cnt:,}.')
+            # elif limit_cnt == 3:
+            #     print(f'{[i]} --Binarize(97%): [Out] threshold exceeded {max_pixel_limit:}% '
+            #           f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
+            #           f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}, limit-cnt={limit_cnt:,}.')
 
         # Dilate:erosion rate is 4:1
         iteration = kwargs['iteration']
         iteration = ceil(iteration + (iteration * i * 0.1))
         erode_iteration = ceil(iteration * iteration_rate)
         print(
-            f'[{i}] --Iteration    : at iteration-rate={iteration_rate:,}, '
+            f'[{i}] --Iteration     : at iteration-rate={iteration_rate:,}, '
             f'dilate-interation={iteration:,}, '
             f'erode-interation={erode_iteration:,}')
         print('---------->')
@@ -272,7 +289,7 @@ def detect_barcode_v2(**kwargs):
             break
 
         print('---------->\n')
-    return cropped
+    return cropped, p
 
 
 def detect_barcode(**kwargs):
