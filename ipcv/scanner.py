@@ -178,7 +178,7 @@ def pixel_percentage(image, color):
 
 def adjust_threshold(i, threshold_cnt, limit_cnt, min_threshold, threshold_inc_rate, black_pixels, white_pixels,
                      max_pixel_limit):
-    if threshold_cnt == 3 or limit_cnt == 3:
+    if threshold_cnt == 3 or limit_cnt == 3 or (threshold_cnt + limit_cnt == 3) > 3:
         return min_threshold, threshold_cnt, limit_cnt, True
 
     if min_threshold > 254 or black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
@@ -195,7 +195,7 @@ def adjust_threshold(i, threshold_cnt, limit_cnt, min_threshold, threshold_inc_r
                     threshold_cnt = threshold_cnt + 1
                 else:
                     limit_cnt = limit_cnt + 1
-            return min_threshold, threshold_cnt, limit_cnt, False
+            return thresh, threshold_cnt, limit_cnt, False
 
         else:
             return min_threshold, threshold_cnt, limit_cnt, False
@@ -233,110 +233,68 @@ def detect_barcode_v2(**kwargs):
             black_pixels = ceil(pixel_percentage(p, BLACK))
             white_pixels = ceil(pixel_percentage(p, WHITE))
 
-            if (black_pixels > max_pixel_limit or white_pixels > max_pixel_limit
-                    or current_threshold > 254):
-                current_threshold, thresh_cnt, limit_cnt, thresh_exceeded = adjust_threshold(i, thresh_cnt, limit_cnt,
-                                                                                             min_threshold,
-                                                                                             threshold_inc_rate,
-                                                                                             black_pixels,
-                                                                                             white_pixels,
-                                                                                             max_pixel_limit)
+            # if (black_pixels > max_pixel_limit or white_pixels > max_pixel_limit
+            #         or current_threshold > 254):
+            #     current_threshold, thresh_cnt, limit_cnt, thresh_exceeded = adjust_threshold(i, thresh_cnt, limit_cnt,
+            #                                                                                  min_threshold,
+            #                                                                                  threshold_inc_rate,
+            #                                                                                  black_pixels,
+            #                                                                                  white_pixels,
+            #                                                                                  max_pixel_limit)
+            #
+            #     print(f'{[i]} --Binarize      : threshold exceeded {max_pixel_limit:}% '
+            #           f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
+            #           f'white={white_pixels:,.2f}%], cnt={thresh_cnt:,}. Adjusted={current_threshold:,} for re-attempt!')
+            #
+            #     # Adjusting the blown binarization with adjusted parameters.
+            #     p = cvlib.binarize_inv(p, current_threshold)
+            #
+            #     # # Update pixel counts for accurate trace.
+            #     # black_pixels = ceil(pixel_percentage(p, BLACK))
+            #     # white_pixels = ceil(pixel_percentage(p, WHITE))
+            # else:
+            print(f'{[i]} --Binarize      : at min-thresh={current_threshold:,}, '
+                  f'black={black_pixels:,.2f}%, '
+                  f'white={white_pixels:,.2f}%, thresh-cnt={thresh_cnt:,}, limit-cnt={limit_cnt:,}')
 
-                print(f'{[i]} --Binarize      : threshold exceeded {max_pixel_limit:}% '
-                      f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
-                      f'white={white_pixels:,.2f}%], cnt={thresh_cnt:,}. Adjusted={current_threshold:,} for re-attempt!')
-
-                # Adjusting the blown binarization with adjusted parameters.
-                p = cvlib.binarize_inv(p, current_threshold)
-
-                # # Update pixel counts for accurate trace.
-                # black_pixels = ceil(pixel_percentage(p, BLACK))
-                # white_pixels = ceil(pixel_percentage(p, WHITE))
-            else:
-                print(f'{[i]} --Binarize      : at min-thresh={current_threshold:,}, '
-                      f'black={black_pixels:,.2f}%, '
-                      f'white={white_pixels:,.2f}%, cnt={thresh_cnt:,}')
-
-                current_threshold, thresh_cnt, limit_cnt, thresh_exceeded = adjust_threshold(i, thresh_cnt, limit_cnt,
-                                                                                             min_threshold,
-                                                                                             threshold_inc_rate,
-                                                                                             black_pixels,
-                                                                                             white_pixels,
-                                                                                             max_pixel_limit)
+            current_threshold, thresh_cnt, limit_cnt, thresh_exceeded = adjust_threshold(i, thresh_cnt, limit_cnt,
+                                                                                         min_threshold,
+                                                                                         threshold_inc_rate,
+                                                                                         black_pixels,
+                                                                                         white_pixels,
+                                                                                         max_pixel_limit)
 
 
         else:
             if thresh_cnt == 3:
                 print(f'{[i]} --Binarize(254): threshold exceeded {max_pixel_limit:}% '
                       f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
-                      f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}.')
+                      f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}, limit-cnt={limit_cnt:,}.')
             elif limit_cnt == 3:
                 print(f'{[i]} --Binarize(97%): threshold exceeded {max_pixel_limit:}% '
                       f'with min-threshold={current_threshold:,}, [black={black_pixels:,.2f}%, '
-                      f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}.')
+                      f'white={white_pixels:,.2f}%], cnt={thresh_cnt:}, limit-cnt={limit_cnt:,}.')
 
-        #     if not thresh_exceeded and thresh_exceed_cnt > 0:
-        #         thresh_exceed_cnt = thresh_exceed_cnt - 1
-        #     else:
-        #         thresh_exceed_cnt = thresh_exceed_cnt + 1
+        # # 4:1 (dilate:erosion)
+        # iteration = kwargs['iteration']
+        # iteration = ceil(iteration + (iteration * i * 0.1))
+        # erode_iteration = ceil(iteration * iteration_rate)
+        # print(
+        #     f'[{i}] --Iteration : at iteration-rate={iteration_rate:,}, '
+        #     f'dilate-interation={iteration:,}, '
+        #     f'erode-interation={erode_iteration:,}')
+        # print('---------->')
         #
-        # if thresh_exceed_cnt > 3:
-        #     skip_thresh = True
-        # else:
-        #     thresh_exceeded = False
-
-    # elif current_threshold > 255:
-    #     current_threshold = adjust_threshold(i, min_threshold, threshold_inc_rate)
-    #     # Adjusting the binarization
-    #     p = cvlib.binarize_inv(p, current_threshold)
-    #     print(
-    #         f'{[i]} --Binarize     : threshold exceeded {max_pixel_limit:}% at min-threshold={current_threshold:,}, '
-    #         f'black={black_pixels:,.2f}%, '
-    #         f'white={white_pixels:,.2f}%. Adjusted={current_threshold:,} for re-attempt!')
-    #
-    # # Increase threshold
-    # current_threshold = ceil(min_threshold + (min_threshold * (i * threshold_inc_rate)))
-    # p = cvlib.binarize_inv(p, current_threshold)
-    # print(f'[{i}] --Binarize   : at min-thresh={current_threshold:,}, '
-    #       f'black={pixel_percentage(p, BLACK):,.2f}%, '
-    #       f'white={pixel_percentage(p, WHITE):,.2f}%,')
-
-    # --------Remove
-    # Once threshold exceed
-    # if not threshold_exceeded:
-    #     if (pixel_percentage(p, BLACK) > max_pixel_limit
-    #             or pixel_percentage(p, WHITE) > max_pixel_limit):
-    #         print(f'Threshold exceeded at min-threshold: {min_threshold:,.2f}, '
-    #               f'black={pixel_percentage(p, BLACK):,.2f}%,'
-    #               f'white={pixel_percentage(p, WHITE):,.2f}%')
-    #         threshold_exceeded = True
-    # # Revert to previous threshold
-    # if i > 1:
-    #     min_threshold = min_threshold + (min_threshold * (((i - 1) / 2) * threshold_inc_rate))
-    # else:
-    #     min_threshold = kwargs['thresh_min']
-    # ------------
-
-    # # 4:1 (dilate:erosion)
-    # iteration = kwargs['iteration']
-    # iteration = ceil(iteration + (iteration * i * 0.1))
-    # erode_iteration = ceil(iteration * iteration_rate)
-    # print(
-    #     f'[{i}] --Iteration : at iteration-rate={iteration_rate:,}, '
-    #     f'dilate-interation={iteration:,}, '
-    #     f'erode-interation={erode_iteration:,}')
-    # print('---------->')
-    #
-    # p = proportionate_close(p, iteration, erode_iteration)
-    #
-    # contour = find_rectangle(source_img=kwargs['image'],
-    #                          processed_img=p,
-    #                          min_area_factor=kwargs['min_area_factor'],
-    #                          box=kwargs['box'],
-    #                          draw=False)
-    # if contour is not None:
-    #     cropped = crop_roi(kwargs['image'], contour, BLUE)
-    #     break
+        # p = proportionate_close(p, iteration, erode_iteration)
+        #
+        # contour = find_rectangle(source_img=kwargs['image'],
+        #                          processed_img=p,
+        #                          min_area_factor=kwargs['min_area_factor'],
+        #                          box=kwargs['box'],
+        #                          draw=False)
+        # if contour is not None:
+        #     cropped = crop_roi(kwargs['image'], contour, BLUE)
+        #     break
     return p
 
 
