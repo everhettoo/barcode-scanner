@@ -210,6 +210,79 @@ def adjust_threshold(i, threshold_min, rate, black_pixels, white_pixels, max_pix
             return thresh, False
 
 
+def detect_barcode_v3(image, **kwargs):
+    max_pixel_limit = int(kwargs['max_pixel_limit'])
+    min_threshold = int(kwargs['min_threshold'])
+    cropped = None
+    thresh_exceeded = False
+    cnt = 0
+    # To prevent repetition of warning.
+    displayed_warning = False
+    # Assign current-threshold for processing with config-threshold.
+    curr_threshold = int(kwargs['min_threshold'])
+    # Current processed image.
+    p = None
+
+    pre = preprocess_image(image, kwargs['gamma'], kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+    image_size = image.shape[0] * image.shape[1]
+    print(f'Info                : size={image_size:,}, RxC=[{pre.shape[0]:,}x{pre.shape[1]:,}], '
+          f'box-ratio-on: {kwargs["box"]}, attempt-limit: {kwargs["attempt_limit"]}')
+
+    p = cvlib.binarize_inv(pre, curr_threshold)
+
+    for i in range(1, int(kwargs['attempt_limit']) + 1):
+        cnt = i
+        print(f'----------> [BEGIN, attempt={cnt}]')
+
+        # Pixel-ratio checking:
+        black_pixels = pixel_percentage(p, BLACK)
+        white_pixels = pixel_percentage(p, WHITE)
+        if black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
+            print(
+                f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] Exceeded {max_pixel_limit:}% limit!')
+            break
+        else:
+            print(
+                f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] within {max_pixel_limit:}% limit.')
+
+        print(f'[{i}] --Morphing      : dilation:erosion=[{kwargs["dilate_iteration"]}:{kwargs["erode_iteration"]}]')
+
+        p = proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
+                                kwargs['dilate_size'], kwargs['erode_size'])
+
+        p = cvlib.morph_open(p, 10, (45, 45))
+
+        contour = find_rectangle(source_img=image,
+                                 processed_img=p,
+                                 min_area_factor=kwargs['min_area_factor'],
+                                 cnt=cnt,
+                                 box=kwargs['box'],
+                                 draw=False,
+                                 verbose=False)
+        if contour is not None:
+            cropped = crop_roi(image, contour, GREEN)
+            break
+
+    # for i in range(1, int(kwargs['attempt_limit']) + 1):
+    #     print(f'[{i}] --Closing       : dilation:erosion=[{kwargs["dilate_iteration"]}:{kwargs["erode_iteration"]}]')
+    #     # p = cvlib.morph_dilate(p, kwargs["dilate_iteration"], (3, 3))
+    #     p = cvlib.morph_open(p, (25, 25))
+    #
+    #     contour = find_rectangle(source_img=image,
+    #                              processed_img=p,
+    #                              min_area_factor=kwargs['min_area_factor'],
+    #                              cnt=cnt,
+    #                              box=kwargs['box'],
+    #                              draw=False,
+    #                              verbose=False)
+    #     if contour is not None:
+    #         cropped = crop_roi(image, contour, GREEN)
+    #         break
+
+    print(f'----------> [END, attempt={cnt}/{kwargs["attempt_limit"]}]\n')
+    return cropped, p
+
+
 def detect_barcode_v2(image, **kwargs):
     max_pixel_limit = int(kwargs['max_pixel_limit'])
     min_threshold = int(kwargs['min_threshold'])
