@@ -440,18 +440,39 @@ def detect_barcode(**kwargs):
     return cropped
 
 
-def detect_qrcode(**kwargs):
-    p = kwargs['image'].copy()
-    p = cvlib.binarize(p, kwargs['thresh_min'])
+def detect_qrcode(image, **kwargs):
+    pre = preprocess_image(image, kwargs['gamma'], kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+    binary = cv2.threshold(pre, kwargs['thresh_min'], 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
 
-    ksize = (13, 13)
-    iteration = 5
-    p = cvlib.morph_close(p, ksize)
-    p = cvlib.morph_open(p, ksize)
-    p = cvlib.morph_dilate(p, iteration, ksize)
-    p = cvlib.morph_erode(p, iteration)
+    vertical = cv2.getStructuringElement(cv2.MORPH_CROSS, (1, 3))
+    horizontal = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 1))
+    rect = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+    p = binary
+    cropped = None
+    for i in range(1, 3):
+        p = cv2.dilate(p, vertical, iterations=3)
+        p = cv2.dilate(p, horizontal, iterations=3)
+        # p = cv2.morphologyEx(p, cv2.MORPH_OPEN, rect)
+        p = cv2.erode(p, horizontal, iterations=2)
+        p = cv2.erode(p, vertical, iterations=2)
+        # p = cv2.dilate(p, rect, iterations=1)
+        p = cv2.morphologyEx(p, cv2.MORPH_CLOSE, rect)
+        p = cv2.dilate(p, vertical, iterations=1)
+        p = cv2.dilate(p, horizontal, iterations=1)
+        # p = cv2.morphologyEx(p, cv2.MORPH_OPEN, rect)
+        p = cv2.morphologyEx(p, cv2.MORPH_CLOSE, rect)
 
-    contours, _ = cv2.findContours(p, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contour = find_rectangle(source_img=image,
+                                 processed_img=p,
+                                 min_area_factor=kwargs['min_area_factor'],
+                                 cnt=i,
+                                 box=kwargs['box'],
+                                 draw=False,
+                                 verbose=False)
+        if contour is not None:
+            cropped = crop_roi(image, contour, GREEN)
+            break
+    return cropped, contour
 
 
 def decode_barcode(img):
