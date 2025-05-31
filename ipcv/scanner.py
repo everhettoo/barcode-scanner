@@ -76,6 +76,12 @@ def crop_roi(image, max_contour, color):
     return image[y:y + h, x:x + w]
 
 
+def draw_bounding_box(image, contour, color):
+    perimeter = cv2.arcLength(contour, True)
+    approx = cv2.approxPolyDP(contour, 0.04 * perimeter, True)
+    cv2.drawContours(image, [approx], -1, color, 3)
+
+
 def is_perpendicular_angle(angle):
     # print(f'angle:{angle}')
     if abs(90 - angle) < 10:
@@ -406,7 +412,7 @@ def detect_barcode(**kwargs):
     - offset (uint):  The offest of the box to resize to.
     :return: The detected barcodes are annotated on the original image first, and cropped barcode is returned.
     """
-
+    cropped = None
     p = cvlib.convert_rgb2gray(kwargs['image'])
 
     p = cvlib.adjust_gamma(p, kwargs['gamma'])
@@ -435,9 +441,19 @@ def detect_barcode(**kwargs):
 
     p = cvlib.resize_image(p, x.shape[1], x.shape[0])
 
-    cropped = cvlib.get_prominent_contour(kwargs['image'], p, kwargs['offset'])
+    cropped, contour = cvlib.get_prominent_contour(kwargs['image'], p, kwargs['offset'])
 
-    return cropped
+    # contour = find_rectangle(source_img=kwargs['image'],
+    #                          processed_img=p,
+    #                          min_area_factor=0.05,
+    #                          cnt=1,
+    #                          box=False,
+    #                          draw=False,
+    #                          verbose=False)
+    # if contour is not None:
+    #     cropped = crop_roi(kwargs['image'], contour, GREEN)
+    #
+    return cropped, contour
 
 
 def detect_qrcode(image, **kwargs):
@@ -449,6 +465,7 @@ def detect_qrcode(image, **kwargs):
     rect = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
     p = binary
     cropped = None
+    contour = None
     for i in range(1, 3):
         p = cv2.dilate(p, vertical, iterations=3)
         p = cv2.dilate(p, horizontal, iterations=3)

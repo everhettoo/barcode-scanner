@@ -160,7 +160,7 @@ def get_prominent_contour(source_image, processed_image, offset=0):
     [X, Y, W, H] = cv2.boundingRect(box)
     cropped = source_image[Y - offset:Y + H + offset, X + offset:X + W + offset]
 
-    return cropped
+    return cropped, c
 
 
 def detect_gradient(image):
@@ -193,6 +193,7 @@ def binarize(image, min_val=127):
     (_, thresh) = cv2.threshold(image, min_val, 255, cv2.THRESH_BINARY)
     return thresh
 
+
 def binarize_inv(image, min_val=127):
     """
     Binarize the given image with a given minimum threshold value.
@@ -202,4 +203,3 @@ def binarize_inv(image, min_val=127):
     """
     (_, thresh) = cv2.threshold(image, min_val, 255, cv2.THRESH_BINARY_INV)
     return thresh
-
