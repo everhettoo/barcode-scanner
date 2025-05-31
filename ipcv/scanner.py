@@ -1,9 +1,8 @@
+import math
 from math import ceil
-from pickletools import uint8
 
 import cv2
 import numpy as np
-import math
 
 from ipcv import cvlib
 
@@ -166,15 +165,19 @@ def find_rectangle(source_img, processed_img, min_area_factor, cnt, box=False, d
     return selected_max_contour
 
 
-def proportionate_close(image, dilate_iteration, erode_iteration):
-    horizontal_se = np.array([
-        [1, 1, 1]
-    ])
+def proportionate_close(image, dilate_iteration, erode_iteration, dilate_size, erode_size):
+    # horizontal_se = np.array([
+    #     [1, 1, 1]
+    # ])
+    #
+    # vertical_se = np.array([
+    #     [1],
+    #     [1]
+    # ])
 
-    vertical_se = np.array([
-        [1],
-        [1]
-    ])
+    horizontal_se = np.ones((1, dilate_size)).astype('uint8')
+    vertical_se = np.ones((erode_size, 1)).astype('uint8')
+
     image = cv2.dilate(image, horizontal_se, iterations=dilate_iteration)
     image = cv2.erode(image, vertical_se, iterations=erode_iteration)
     return image
@@ -188,10 +191,16 @@ def adjust_threshold(i, threshold_min, rate, black_pixels, white_pixels, max_pix
     if threshold_min > MIN_THRESHOLD_LIMIT:
         return MIN_THRESHOLD_LIMIT, True
     elif black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
-        # Reduce 10%
-        thresh = calculate_threshold(threshold_min, i, rate)
-        thresh = thresh - (thresh * 0.2)
-        return thresh, True
+        if white_pixels > max_pixel_limit:
+            # Reduce 20%
+            thresh = calculate_threshold(threshold_min, i, rate)
+            thresh = thresh - (thresh * 0.2)
+            return thresh, True
+        else:
+            # Increase 20%
+            thresh = calculate_threshold(threshold_min, i, rate)
+            thresh = thresh + (thresh * 0.2)
+            return thresh, True
     else:
         # thresh = ceil(threshold_min + (threshold_min * i * rate))
         thresh = calculate_threshold(threshold_min, i, rate)
@@ -201,7 +210,7 @@ def adjust_threshold(i, threshold_min, rate, black_pixels, white_pixels, max_pix
             return thresh, False
 
 
-def detect_barcode_v2(**kwargs):
+def detect_barcode_v2(image, **kwargs):
     max_pixel_limit = int(kwargs['max_pixel_limit'])
     min_threshold = int(kwargs['min_threshold'])
     cropped = None
@@ -214,8 +223,8 @@ def detect_barcode_v2(**kwargs):
     # Current processed image.
     p = None
 
-    pre = preprocess_image(kwargs['image'], kwargs['gamma'], kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
-    image_size = kwargs['image'].shape[0] * kwargs['image'].shape[1]
+    pre = preprocess_image(image, kwargs['gamma'], kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+    image_size = image.shape[0] * image.shape[1]
     print(f'Info                : size={image_size:,}, RxC=[{pre.shape[0]:,}x{pre.shape[1]:,}], '
           f'box-ratio-on: {kwargs["box"]}, attempt-limit: {kwargs["attempt_limit"]}')
 
@@ -276,27 +285,7 @@ def detect_barcode_v2(**kwargs):
                 print(f'{[i]} --Binarize      : skipping attempt {cnt}!')
                 continue
 
-        # if thresh_exceeded:
-        #     # Binarize image using corrected threshold before turning off binarization.
-        #     print(f'{[i]} --Binarize      : reverting image with corrected min-thresh={curr_threshold:,}')
-        #     p = cvlib.binarize_inv(pre, curr_threshold)
-        #
-        #     calculated_limit = calculate_threshold(min_threshold, i, kwargs["threshold_rate"])
-        #     # Display the descriptive warning message once.
-        #     if not displayed_warning:
-        #         if curr_threshold == MIN_THRESHOLD_LIMIT:
-        #             print(
-        #                 f'{[i]} --Binarize      : min-threshold={calculated_limit} exceeded limit ({MIN_THRESHOLD_LIMIT})!\n'
-        #                 f'                      indefinite-adjustment made to min-threshold={curr_threshold:,} ...')
-        #         else:
-        #             print(
-        #                 f'{[i]} --Binarize      : pixel ratio exceeded limit {max_pixel_limit:}% with min-threshold={calculated_limit}!\n'
-        #                 f'                      indefinite-adjustment made to min-threshold={curr_threshold:,} ...')
-        #
-        #         # Turn off to avoid repeating warning.
-        #         displayed_warning = True
-
-        # Pixel-ration checking:
+        # Pixel-ratio checking:
         black_pixels = pixel_percentage(p, BLACK)
         white_pixels = pixel_percentage(p, WHITE)
         if black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
@@ -305,19 +294,14 @@ def detect_barcode_v2(**kwargs):
             break
         else:
             print(
-                f'{[i]} --Ratio-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] within {max_pixel_limit:}% limit.')
+                f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] within {max_pixel_limit:}% limit.')
 
-        # Dilate:erosion rate is 4:1
-        iteration = kwargs['iteration']
-        iteration = ceil(iteration)
-        erode_iteration = ceil(iteration * kwargs['iteration_rate'])
-        print(
-            f'[{i}] --Morphing      : at iteration-rate={kwargs["iteration_rate"]:,} for interation(s)={iteration:,}, '
-            f'dilate={iteration:,}, erode={erode_iteration:,}')
+        print(f'[{i}] --Morphing      : dilation:erosion=[{kwargs["dilate_iteration"]}:{kwargs["erode_iteration"]}]')
 
-        p = proportionate_close(p, iteration, erode_iteration)
+        p = proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
+                                kwargs['dilate_size'], kwargs['erode_size'])
 
-        contour = find_rectangle(source_img=kwargs['image'],
+        contour = find_rectangle(source_img=image,
                                  processed_img=p,
                                  min_area_factor=kwargs['min_area_factor'],
                                  cnt=cnt,
@@ -325,7 +309,7 @@ def detect_barcode_v2(**kwargs):
                                  draw=False,
                                  verbose=False)
         if contour is not None:
-            cropped = crop_roi(kwargs['image'], contour, GREEN)
+            cropped = crop_roi(image, contour, GREEN)
             break
 
     print(f'----------> [END, attempt={cnt}/{kwargs["attempt_limit"]}]\n')
