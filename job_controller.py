@@ -75,8 +75,12 @@ class JobController:
 
     def process_image(self, img):
         try:
+            # barcode_img = img.copy()
+            # qrcode_img = img.copy()
             self.trace.write(f'\n[{threading.currentThread().native_id}] <<<< Processing-Start >>>>')
-            self.process_barcode(img)
+            bcode_processed, bcode_cropped = self.process_barcode(img)
+            qr_processed, qr_cropped = self.process_qrcode(img)
+            self.process_callback(img, img)
             self.trace.write(f'[{threading.currentThread().native_id}] <<<< Processing-End >>>>\n')
 
         except Exception as e:
@@ -86,7 +90,7 @@ class JobController:
         self.trace.write(f'[{threading.currentThread().native_id}] Processing barcode ...')
 
         copy = img.copy()
-        cropped = scanner.detect_barcode(image=img,
+        cropped, contour = scanner.detect_barcode(image=img,
                                          gamma=0.5,
                                          gaussian_ksize=(15, 15),
                                          gaussian_sigma=2,
@@ -112,7 +116,7 @@ class JobController:
                     img = copy.copy()
                     self.trace.write(
                         f'[{threading.currentThread().native_id}] Detecting attempt [{cnt}] Increasing SE kernel {ksize} ...')
-                    cropped = scanner.detect_barcode(image=img,
+                    cropped, contour = scanner.detect_barcode(image=img,
                                                      gamma=0.5,
                                                      gaussian_ksize=(15, 15),
                                                      gaussian_sigma=2,
@@ -136,6 +140,39 @@ class JobController:
                 self.trace.write(
                     f'[{threading.currentThread().native_id}] No barcode detected at attempt [{cnt}] using max ksize={ksize}!')
 
-            self.process_callback(img, cropped)
+            # self.process_callback(img, cropped)
         else:
             self.trace.write(f'[{threading.currentThread().native_id}] Processing barcode: KO')
+
+        return img, cropped
+
+    def process_qrcode(self, img):
+        self.trace.write(f'[{threading.currentThread().native_id}] Processing qr-code ...')
+
+        cropped, contour = scanner.detect_qrcode(img,
+                                                 gamma=0.1,
+                                                 gaussian_ksize=(3, 3),
+                                                 gaussian_sigma=2,
+                                                 thresh_min=128,
+                                                 box=True,
+                                                 min_area_factor=0.02)
+
+        if cropped is not None:
+            decoded = False
+            self.trace.write(f'[{threading.currentThread().native_id}] Detecting qr-code: OK')
+
+            qrcode = scanner.decode_barcode(cropped)
+            if qrcode is not None:
+                decoded = True
+
+            if decoded:
+                self.trace.write(f'[{threading.currentThread().native_id}] Decoded: [{qrcode}]')
+            else:
+                self.trace.write(
+                    f'[{threading.currentThread().native_id}] No qr-code detected at attempt!')
+
+            # self.process_callback(img, cropped)
+        else:
+            self.trace.write(f'[{threading.currentThread().native_id}] Processing qr-code: KO')
+
+        return img, cropped
