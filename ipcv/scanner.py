@@ -233,8 +233,8 @@ def detect_barcode_v2(**kwargs):
             # No logic processing, only for displaying.
             if black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
                 print(
-                    f'{[i]} --Binarize(254)   : pixel ratio exceeded limit {max_pixel_limit:}% with min-threshold={calculate_threshold}!\n'
-                    f'[black={black_pixels:,.2f}%, white={white_pixels:,.2f}%]')
+                    f'{[i]} --Binarize      : pixel ratio exceeded limit {max_pixel_limit:}% with min-threshold={curr_threshold}!'
+                    f' [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%]')
             elif curr_threshold > MIN_THRESHOLD_LIMIT:
                 print(
                     f'{[i]} --Binarize      : min-threshold={curr_threshold} exceeded limit ({MIN_THRESHOLD_LIMIT})!\n'
@@ -244,6 +244,7 @@ def detect_barcode_v2(**kwargs):
                       f'[black={black_pixels:,.2f}%, white={white_pixels:,.2f}%]')
 
             # Pass the config-threshold to obtain the calculated current-threshold for processing.
+            # On breaching threshold limit, revised threshold is made for correction before flagging threshold off.
             curr_threshold, thresh_exceeded = adjust_threshold(i,
                                                                int(kwargs['min_threshold']),
                                                                kwargs["threshold_rate"],
@@ -251,31 +252,60 @@ def detect_barcode_v2(**kwargs):
                                                                white_pixels,
                                                                max_pixel_limit)
 
-        if thresh_exceeded:
-            calculated_limit = calculate_threshold(min_threshold, i, kwargs["threshold_rate"])
-            # Display the descriptive warning message once.
-            if not displayed_warning:
-                if curr_threshold == MIN_THRESHOLD_LIMIT:
-                    print(
-                        f'{[i]} --Binarize      : min-threshold={calculated_limit} exceeded limit ({MIN_THRESHOLD_LIMIT})!\n'
-                        f'                      indefinite-adjustment made to min-threshold={curr_threshold:,} ...')
-                else:
-                    print(
-                        f'{[i]} --Binarize      : pixel ratio exceeded limit {max_pixel_limit:}% with min-threshold={calculate_threshold}!\n'
-                        f'                      indefinite-adjustment made to min-threshold={curr_threshold:,} ...')
+            if thresh_exceeded:
+                calculated_limit = calculate_threshold(min_threshold, i - 1, kwargs["threshold_rate"])
+                # Display the descriptive warning message once.
+                if not displayed_warning:
+                    if curr_threshold == MIN_THRESHOLD_LIMIT:
+                        print(
+                            f'{[i]} --Binarize      : min-threshold={calculated_limit} exceeded limit ({MIN_THRESHOLD_LIMIT})!\n'
+                            f'                      indefinite-adjustment made to min-threshold={curr_threshold:} ...')
+                    else:
+                        print(
+                            f'{[i]} --Binarize      : pixel ratio exceeded limit {max_pixel_limit:}% with min-threshold={calculated_limit}!\n'
+                            f'                      indefinite-adjustment made to min-threshold={curr_threshold:} ...')
 
-                # Turn off to avoid repeating warning.
-                displayed_warning = True
+                    # Turn off to avoid repeating warning.
+                    displayed_warning = True
+
+                # Binarize image using corrected threshold before turning off binarization.
+                print(f'{[i]} --Binarize      : reverting image with corrected min-thresh={curr_threshold:,}')
+                p = cvlib.binarize_inv(pre, curr_threshold)
+
+                # Skip morphing so in the next cycle the binarization will be corrected before turning it off.
+                print(f'{[i]} --Binarize      : skipping attempt {cnt}!')
+                continue
+
+        # if thresh_exceeded:
+        #     # Binarize image using corrected threshold before turning off binarization.
+        #     print(f'{[i]} --Binarize      : reverting image with corrected min-thresh={curr_threshold:,}')
+        #     p = cvlib.binarize_inv(pre, curr_threshold)
+        #
+        #     calculated_limit = calculate_threshold(min_threshold, i, kwargs["threshold_rate"])
+        #     # Display the descriptive warning message once.
+        #     if not displayed_warning:
+        #         if curr_threshold == MIN_THRESHOLD_LIMIT:
+        #             print(
+        #                 f'{[i]} --Binarize      : min-threshold={calculated_limit} exceeded limit ({MIN_THRESHOLD_LIMIT})!\n'
+        #                 f'                      indefinite-adjustment made to min-threshold={curr_threshold:,} ...')
+        #         else:
+        #             print(
+        #                 f'{[i]} --Binarize      : pixel ratio exceeded limit {max_pixel_limit:}% with min-threshold={calculated_limit}!\n'
+        #                 f'                      indefinite-adjustment made to min-threshold={curr_threshold:,} ...')
+        #
+        #         # Turn off to avoid repeating warning.
+        #         displayed_warning = True
 
         # Pixel-ration checking:
         black_pixels = pixel_percentage(p, BLACK)
         white_pixels = pixel_percentage(p, WHITE)
-        print(
-            f'{[i]} --Ratio-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] within {max_pixel_limit:}% limit.')
         if black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
             print(
                 f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] Exceeded {max_pixel_limit:}% limit!')
             break
+        else:
+            print(
+                f'{[i]} --Ratio-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] within {max_pixel_limit:}% limit.')
 
         # Dilate:erosion rate is 4:1
         iteration = kwargs['iteration']
