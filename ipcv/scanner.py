@@ -82,6 +82,15 @@ def draw_bounding_box(image, contour, color):
     cv2.drawContours(image, [approx], -1, color, 3)
 
 
+def draw_bounding_box2(image, box, color):
+    cv2.drawContours(image, [box], -1, color, 3)
+
+
+def crop_roi2(image, box):
+    (x, y, w, h) = cv2.boundingRect(box)
+    return image[y:y + h, x:x + w]
+
+
 def is_perpendicular_angle(angle):
     # print(f'angle:{angle}')
     if abs(90 - angle) < 10:
@@ -441,19 +450,19 @@ def detect_barcode(**kwargs):
 
     p = cvlib.resize_image(p, x.shape[1], x.shape[0])
 
-    cropped, contour = cvlib.get_prominent_contour(kwargs['image'], p, kwargs['offset'])
-
+    contour = cvlib.get_prominent_contour(p, kwargs['offset'])
+    #
     # contour = find_rectangle(source_img=kwargs['image'],
     #                          processed_img=p,
-    #                          min_area_factor=0.05,
+    #                          min_area_factor=0.03,
     #                          cnt=1,
     #                          box=False,
-    #                          draw=False,
-    #                          verbose=False)
+    #                          draw=True,
+    #                          verbose=True)
     # if contour is not None:
     #     cropped = crop_roi(kwargs['image'], contour, GREEN)
-    #
-    return cropped, contour
+
+    return contour
 
 
 def detect_qrcode(image, **kwargs):
