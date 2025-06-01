@@ -1,11 +1,19 @@
 import threading
 
+from zmq import NOTIFY_DISCONNECT
+
 from camera import Camera
 from ipcv import cvlib, scanner
 from trace_handler import TraceHandler
 
 
 class JobController:
+    """
+    Acknowledgement: No-image was taken from "https://www.flaticon.com/free-icons/no-image", and credit to sonnycandra.
+    """
+
+    NO_DISPLAY_IMG = 'resources/no-image.png'
+
     def __init__(self, device, frame_callback, trace_callback, process_callback, interval):
         self.camera = Camera(device, frame_callback, interval)
         # The default mode when application starts.
@@ -75,12 +83,38 @@ class JobController:
 
     def process_image(self, img):
         try:
-            # barcode_img = img.copy()
-            # qrcode_img = img.copy()
+            cropped = None
             self.trace.write(f'\n[{threading.currentThread().native_id}] <<<< Processing-Start >>>>')
-            bcode_processed, bcode_cropped = self.process_barcode(img)
-            qr_processed, qr_cropped = self.process_qrcode(img)
-            self.process_callback(img, img)
+            b_con = self.process_barcode(img)
+            q_con = None
+            # q_con = self.process_qrcode(img)
+
+            # TODO: To process the image annotation based on contours.
+            if b_con is not None and q_con is not None:
+                # Both is present.
+                self.trace.write(
+                    f'[{threading.currentThread().native_id}] Processing detected both barcode & qrcode ...')
+            elif b_con is None and q_con is None:
+                # Both is absent - sending no-image to UI for displaying.
+                cropped = cvlib.load_image(self.NO_DISPLAY_IMG)
+                self.trace.write(
+                    f'[{threading.currentThread().native_id}] Both barcode & qrcode is not detected!')
+            else:
+                # Either is present.
+                if b_con is not None:
+                    self.trace.write(f'[{threading.currentThread().native_id}] Processing detected barcode ...')
+                    cropped = cvlib.load_image(self.NO_DISPLAY_IMG)
+
+                if b_con is not None:
+                    self.trace.write(f'[{threading.currentThread().native_id}] Processing detected qrcode ...')
+
+            if cropped is None:
+                # This should not happen.
+                raise ValueError('Something went wrong during cropping!\n')
+
+            # Send the processed image and cropped images for UI display.
+            self.process_callback(img, cropped)
+
             self.trace.write(f'[{threading.currentThread().native_id}] <<<< Processing-End >>>>\n')
 
         except Exception as e:
@@ -88,19 +122,19 @@ class JobController:
 
     def process_barcode(self, img):
         self.trace.write(f'[{threading.currentThread().native_id}] Processing barcode ...')
-
+        # The copy is used in subsequent finding when barcode was not detected.
         copy = img.copy()
         cropped, contour = scanner.detect_barcode(image=img,
-                                         gamma=0.5,
-                                         gaussian_ksize=(15, 15),
-                                         gaussian_sigma=2,
-                                         avg_ksize1=(9, 9),
-                                         avg_ksize2=(3, 3),
-                                         thresh_min=200,
-                                         dilate_kernel=(21, 7),
-                                         dilate_iteration=4,
-                                         shrink_factor=6,
-                                         offset=0)
+                                                  gamma=0.5,
+                                                  gaussian_ksize=(15, 15),
+                                                  gaussian_sigma=2,
+                                                  avg_ksize1=(9, 9),
+                                                  avg_ksize2=(3, 3),
+                                                  thresh_min=200,
+                                                  dilate_kernel=(21, 7),
+                                                  dilate_iteration=4,
+                                                  shrink_factor=6,
+                                                  offset=0)
         if cropped is not None:
             cnt = 0
             decoded = False
@@ -117,16 +151,16 @@ class JobController:
                     self.trace.write(
                         f'[{threading.currentThread().native_id}] Detecting attempt [{cnt}] Increasing SE kernel {ksize} ...')
                     cropped, contour = scanner.detect_barcode(image=img,
-                                                     gamma=0.5,
-                                                     gaussian_ksize=(15, 15),
-                                                     gaussian_sigma=2,
-                                                     avg_ksize1=(9, 9),
-                                                     avg_ksize2=(3, 3),
-                                                     thresh_min=200,
-                                                     dilate_kernel=ksize,
-                                                     dilate_iteration=4,
-                                                     shrink_factor=6,
-                                                     offset=0)
+                                                              gamma=0.5,
+                                                              gaussian_ksize=(15, 15),
+                                                              gaussian_sigma=2,
+                                                              avg_ksize1=(9, 9),
+                                                              avg_ksize2=(3, 3),
+                                                              thresh_min=200,
+                                                              dilate_kernel=ksize,
+                                                              dilate_iteration=4,
+                                                              shrink_factor=6,
+                                                              offset=0)
                     barcode = scanner.decode_barcode(cropped)
                     if barcode is not None:
                         decoded = True
