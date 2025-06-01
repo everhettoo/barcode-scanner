@@ -1,9 +1,9 @@
 import threading
 
-from camera import Camera
+from ipcv.camera import Camera
 from config import parameters
 from ipcv import cvlib, scanner
-from trace_handler import TraceHandler
+from utility.trace_handler import TraceHandler
 
 
 class JobController:
