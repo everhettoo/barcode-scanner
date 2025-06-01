@@ -87,3 +87,47 @@ barcode_general2 = {'gamma': 1,
                     'erode_size': 1,
                     'min_area_factor': 0.04,
                     'box': False}
+
+# 120
+# image = cvlib.load_image('resources/barcode/barcode101.png')
+# image = cvlib.load_image('resources/barcode/barcode102.png')
+# image = cvlib.load_image('resources/barcode/barcode111.png')
+# image = cvlib.load_image('resources/barcode/barcode112.png')
+# image = cvlib.load_image('resources/barcode/barcode113.png')
+# image = cvlib.load_image('resources/barcode/barcode114.png')
+# image = cvlib.load_image('resources/barcode/barcode120.jpg')
+# Img-140: Needs threshold=100
+# image = cvlib.load_image('resources/barcode/barcode140.jpg')
+# image = cvlib.load_image('resources/barcode/barcode500.jpg')
+barcode_general = {'gamma': 1,
+                   'gaussian_ksize': (3, 3),
+                   'gaussian_sigma': 1,
+                   'min_threshold': 120,
+                   'max_pixel_limit': 100,
+                   'attempt_limit': 30,
+                   'dilate_iteration': 4,
+                   'erode_iteration': 2,
+                   'dilate_size': 3,
+                   'erode_size': 1,
+                   'min_area_factor': 0.04,
+                   'box': False}
+
+# Not working with general-3
+# image = cvlib.load_image('resources/barcode/barcode150.jpg')
+
+# Img-160: threshold=100
+# image = cvlib.load_image('resources/barcode/barcode160.jpg')
+# Img-170: threshold=80
+# image = cvlib.load_image('resources/barcode/barcode170.jpg')
+barcode_special = {'gamma': 1,
+                   'gaussian_ksize': (3, 3),
+                   'gaussian_sigma': 1,
+                   'min_threshold': 120,
+                   'max_pixel_limit': 100,
+                   'attempt_limit': 20,
+                   'dilate_iteration': 2,
+                   'erode_iteration': 1,
+                   'dilate_size': 6,
+                   'erode_size': 2,
+                   'min_area_factor': 0.03,
+                   'box': False}

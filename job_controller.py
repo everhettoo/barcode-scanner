@@ -1,6 +1,7 @@
 import threading
 
 from camera import Camera
+from config import parameters
 from ipcv import cvlib, scanner
 from trace_handler import TraceHandler
 
@@ -130,20 +131,24 @@ class JobController:
             self.trace.write(f"[{threading.currentThread().native_id}] Error: {e}")
 
     def process_barcode(self, img):
-        self.trace.write(f'[{threading.currentThread().native_id}] Processing barcode ...')
+        self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode ...')
         # The copy is used in subsequent finding when barcode was not detected.
         copy = img.copy()
-        box = scanner.detect_barcode(image=copy,
-                                     gamma=0.5,
-                                     gaussian_ksize=(15, 15),
-                                     gaussian_sigma=2,
-                                     avg_ksize1=(9, 9),
-                                     avg_ksize2=(3, 3),
-                                     thresh_min=200,
-                                     dilate_kernel=(21, 7),
-                                     dilate_iteration=4,
-                                     shrink_factor=6,
-                                     offset=0)
+
+        # TODO: Integrated with barcode-detection v3.
+        # box = scanner.detect_barcode(image=copy,
+        #                              gamma=0.5,
+        #                              gaussian_ksize=(15, 15),
+        #                              gaussian_sigma=2,
+        #                              avg_ksize1=(9, 9),
+        #                              avg_ksize2=(3, 3),
+        #                              thresh_min=200,
+        #                              dilate_kernel=(21, 7),
+        #                              dilate_iteration=4,
+        #                              shrink_factor=6,
+        #                              offset=0)
+
+        box, p = scanner.detect_barcode_v3(copy, **parameters.barcode_general)
         cnt = 0
         detected = False
         ksize = (21, 7)
@@ -183,7 +188,7 @@ class JobController:
         return box
 
     def process_qrcode(self, img):
-        self.trace.write(f'[{threading.currentThread().native_id}] Processing qr-code ...')
+        self.trace.write(f'[{threading.currentThread().native_id}] Detecting qr-code ...')
         box = scanner.detect_qrcode(img.copy(),
                                     gamma=0.1,
                                     gaussian_ksize=(3, 3),

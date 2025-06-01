@@ -109,13 +109,16 @@ def rectangle_coordinates(approx):
     return coordinates[0], coordinates[1], coordinates[2], coordinates[3]
 
 
-def find_rectangle(source_img, processed_img, min_area_factor, cnt, box=False, draw=False, verbose=False):
-    contours, _ = cv2.findContours(processed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+def find_rectangle(processed_img, min_area_factor, cnt, box=False, draw=False, verbose=False):
+    # RETR_EXTERNAL - does not return inner rect that meets the requirement.
+    # contours, _ = cv2.findContours(processed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(processed_img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
     image_area = processed_img.shape[0] * processed_img.shape[1]
     min_required_area = image_area * min_area_factor
+    max_required_area = image_area - (image_area * 0.3)
     print(
-        f'[{cnt}] --Contour       : found={len(contours)}; min-req-area={min_required_area:,.2f} '
+        f'[{cnt}] --Contour       : found={len(contours)}; min-req-area={min_required_area:,.2f}, max-req-area={max_required_area:,.2f} '
         f'({min_area_factor} at rate); area should be > {(min_required_area / image_area) * 100:.2f}%')
 
     selected_max_contour = None
@@ -135,7 +138,7 @@ def find_rectangle(source_img, processed_img, min_area_factor, cnt, box=False, d
         # Ramer–Douglas–Peucker algorithm: It approximates a contour shape to another shape with reduced vertices
         # depending upon the precision of epsilon. So, coordinates for polygons are returned.
         approx = cv2.approxPolyDP(contour, eps * perimeter, True)
-        if draw: cv2.drawContours(source_img, [approx], -1, GREEN, 3)
+        if draw: cv2.drawContours(processed_img, [approx], -1, BLUE, 3)
 
         # Only polygons with 4 angles are considered since a box or rectangle is needed.
         if len(approx) == 4:
@@ -167,13 +170,17 @@ def find_rectangle(source_img, processed_img, min_area_factor, cnt, box=False, d
                                 f'at rate={(selected_max_area / image_area) * 100:.2f}%')
                             selected_max_contour = contour
                 else:
-                    if calculated_area > min_required_area and calculated_aspect_ratio > 1.2:
+                    # Define rectangle criteria.
+
+                    if min_required_area < calculated_area < max_required_area:
                         if calculated_area > selected_max_area:
-                            selected_max_area = calculated_area
-                            print(
-                                f'[c:{curr_cnt}] --Contour     : selected max-area={selected_max_area:,.2f} '
-                                f'at rate={(selected_max_area / image_area) * 100:.2f}%')
-                            selected_max_contour = contour
+                            # if 1.2 < calculated_aspect_ratio < 3:
+                            if calculated_aspect_ratio > 1.2 and calculated_aspect_ratio < 6:
+                                selected_max_area = calculated_area
+                                print(
+                                    f'[c:{curr_cnt}] --Contour     : selected max-area={selected_max_area:,.2f} '
+                                    f'at rate={(selected_max_area / image_area) * 100:.2f}, aspect-ratio={calculated_aspect_ratio:.6f}')
+                                selected_max_contour = contour
             curr_cnt += 1
             if verbose:
                 print('\r')
@@ -230,6 +237,7 @@ def detect_barcode_v3(image, **kwargs):
     min_threshold = int(kwargs['min_threshold'])
     cropped = None
     thresh_exceeded = False
+    box = None
     cnt = 0
     # To prevent repetition of warning.
     displayed_warning = False
@@ -265,17 +273,21 @@ def detect_barcode_v3(image, **kwargs):
         p = proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
                                 kwargs['dilate_size'], kwargs['erode_size'])
 
-        p = cvlib.morph_open(p, (45, 45))
+        # p = cvlib.morph_open(p, (45, 45))
+        # p = cvlib.morph_open(p, (15, 15))
 
-        contour = find_rectangle(source_img=image,
-                                 processed_img=p,
+        p = cvlib.gaussian_blur(p, kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+
+        contour = find_rectangle(processed_img=p,
                                  min_area_factor=kwargs['min_area_factor'],
                                  cnt=cnt,
                                  box=kwargs['box'],
-                                 draw=False,
+                                 draw=True,
                                  verbose=False)
         if contour is not None:
-            cropped = crop_roi(image, contour, GREEN)
+            rect = cv2.minAreaRect(contour)
+            box = np.intp(cv2.boxPoints(rect))
+            # TODO: Is this break stopping anything larger? This makes more than one ROI. So, need to choose the larger??
             break
 
     # for i in range(1, int(kwargs['attempt_limit']) + 1):
@@ -295,7 +307,8 @@ def detect_barcode_v3(image, **kwargs):
     #         break
 
     print(f'----------> [END, attempt={cnt}/{kwargs["attempt_limit"]}]\n')
-    return cropped, p
+    # return cropped, p
+    return box, p
 
 
 def detect_barcode_v2(image, **kwargs):
@@ -487,8 +500,7 @@ def detect_qrcode(image, **kwargs):
         # p = cv2.morphologyEx(p, cv2.MORPH_OPEN, rect)
         p = cv2.morphologyEx(p, cv2.MORPH_CLOSE, rect)
 
-        contour = find_rectangle(source_img=image,
-                                 processed_img=p,
+        contour = find_rectangle(processed_img=p,
                                  min_area_factor=kwargs['min_area_factor'],
                                  cnt=i,
                                  box=kwargs['box'],
