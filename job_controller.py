@@ -84,13 +84,17 @@ class JobController:
             cropped = None
             self.trace.write(f'\n[{threading.currentThread().native_id}] <<<< Processing-Start >>>>')
             b_box = self.process_barcode(img)
-            q_box = None
+            q_box = self.process_qrcode(img)
 
             # TODO: To process the image annotation based on contours.
             if b_box is not None and q_box is not None:
                 # Both is present.
                 self.trace.write(
                     f'[{threading.currentThread().native_id}] Processing detected both barcode & qrcode ...')
+                scanner.draw_bounding_box2(img, b_box, scanner.GREEN)
+                scanner.draw_bounding_box2(img, q_box, scanner.BLUE)
+                cropped = img
+                # TODO: Bigger box or intersection need to be calculated. For now, the whole image can be shown.
             elif b_box is None and q_box is None:
                 # Both is absent - sending no-image to UI for displaying.
                 cropped = cvlib.load_image(self.NO_DISPLAY_IMG)
@@ -103,10 +107,15 @@ class JobController:
                     scanner.draw_bounding_box2(img, b_box, scanner.GREEN)
                     cropped = scanner.crop_roi2(img, b_box)
                     if cropped is not None:
-                        barcode = scanner.decode_barcode(cropped)
-                        self.trace.write(f'[{threading.currentThread().native_id}] Decoded barcode : {barcode}')
+                        code = scanner.decode_barcode(cropped)
+                        self.trace.write(f'[{threading.currentThread().native_id}] Decoded barcode : {code}')
                 if q_box is not None:
                     self.trace.write(f'[{threading.currentThread().native_id}] Processing detected qrcode ...')
+                    scanner.draw_bounding_box2(img, b_box, scanner.BLUE)
+                    cropped = scanner.crop_roi2(img, b_box)
+                    if cropped is not None:
+                        code = scanner.decode_qrcode(cropped)
+                        self.trace.write(f'[{threading.currentThread().native_id}] Decoded barcode : {code}')
 
             if cropped is None:
                 # This should not happen.
@@ -173,6 +182,23 @@ class JobController:
 
         return box
 
+    def process_qrcode(self, img):
+        self.trace.write(f'[{threading.currentThread().native_id}] Processing qr-code ...')
+        box = scanner.detect_qrcode(img.copy(),
+                                    gamma=0.1,
+                                    gaussian_ksize=(3, 3),
+                                    gaussian_sigma=2,
+                                    thresh_min=128,
+                                    box=True,
+                                    min_area_factor=0.02)
+
+        if box is not None:
+            self.trace.write(f'[{threading.currentThread().native_id}] Detecting qr-code: OK')
+        else:
+            self.trace.write(f'[{threading.currentThread().native_id}] Detecting qr-code: KO')
+
+        return box
+
     def process_barcode_v2(self, img):
         """
         This function has adjustment using barcode detection using cv library. Therefore, this won't be used.
@@ -235,36 +261,5 @@ class JobController:
             # self.process_callback(img, cropped)
         else:
             self.trace.write(f'[{threading.currentThread().native_id}] Processing barcode: KO')
-
-        return img, cropped
-
-    def process_qrcode(self, img):
-        self.trace.write(f'[{threading.currentThread().native_id}] Processing qr-code ...')
-
-        cropped, contour = scanner.detect_qrcode(img,
-                                                 gamma=0.1,
-                                                 gaussian_ksize=(3, 3),
-                                                 gaussian_sigma=2,
-                                                 thresh_min=128,
-                                                 box=True,
-                                                 min_area_factor=0.02)
-
-        if cropped is not None:
-            decoded = False
-            self.trace.write(f'[{threading.currentThread().native_id}] Detecting qr-code: OK')
-
-            qrcode = scanner.decode_barcode(cropped)
-            if qrcode is not None:
-                decoded = True
-
-            if decoded:
-                self.trace.write(f'[{threading.currentThread().native_id}] Decoded: [{qrcode}]')
-            else:
-                self.trace.write(
-                    f'[{threading.currentThread().native_id}] No qr-code detected at attempt!')
-
-            # self.process_callback(img, cropped)
-        else:
-            self.trace.write(f'[{threading.currentThread().native_id}] Processing qr-code: KO')
 
         return img, cropped

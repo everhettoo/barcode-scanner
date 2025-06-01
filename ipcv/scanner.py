@@ -503,12 +503,29 @@ def detect_qrcode(image, **kwargs):
 
 def decode_barcode(img):
     """
-    This function is used only to verify the detected barcode
+    This function is used only to verify the detected barcode.
     :param img: The cropped image with barcode detected.
     :return:
     """
     detector = cv2.barcode_BarcodeDetector()
     # decoded_text, points, barcode_type = detector.detectAndDecode(img)
+    decoded_text, _, _ = detector.detectAndDecode(img)
+    if decoded_text == '':
+        return None
+
+    return decoded_text
+
+
+def decode_qrcode(img, box):
+    """
+    This function is used only to verify the detected qrcode.
+    :param box: The coordinates of the bounding box.
+    :param img: The cropped image with barcode detected.
+    :return:
+    """
+    detector = cv2.QRCodeDetector()
+
+    # Check if a QR code was detected
     decoded_text, _, _ = detector.detectAndDecode(img)
     if decoded_text == '':
         return None
