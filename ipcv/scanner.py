@@ -265,7 +265,7 @@ def detect_barcode_v3(image, **kwargs):
         p = proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
                                 kwargs['dilate_size'], kwargs['erode_size'])
 
-        p = cvlib.morph_open(p, 10, (45, 45))
+        p = cvlib.morph_open(p, (45, 45))
 
         contour = find_rectangle(source_img=image,
                                  processed_img=p,
