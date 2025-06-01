@@ -473,8 +473,7 @@ def detect_qrcode(image, **kwargs):
     horizontal = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 1))
     rect = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
     p = binary
-    cropped = None
-    contour = None
+    box = None
     for i in range(1, 3):
         p = cv2.dilate(p, vertical, iterations=3)
         p = cv2.dilate(p, horizontal, iterations=3)
@@ -496,9 +495,10 @@ def detect_qrcode(image, **kwargs):
                                  draw=False,
                                  verbose=False)
         if contour is not None:
-            cropped = crop_roi(image, contour, GREEN)
+            rect = cv2.minAreaRect(contour)
+            box = np.intp(cv2.boxPoints(rect))
             break
-    return cropped, contour
+    return box
 
 
 def decode_barcode(img):
