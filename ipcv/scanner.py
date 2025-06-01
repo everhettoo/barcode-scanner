@@ -402,8 +402,7 @@ def detect_barcode_v2(image, **kwargs):
         p = proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
                                 kwargs['dilate_size'], kwargs['erode_size'])
 
-        contour = find_rectangle(source_img=image,
-                                 processed_img=p,
+        contour = find_rectangle(processed_img=p,
                                  min_area_factor=kwargs['min_area_factor'],
                                  cnt=cnt,
                                  box=kwargs['box'],

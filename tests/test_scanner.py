@@ -5,7 +5,7 @@ from ipcv import cvlib, scanner
 
 class Test(TestCase):
     def test_decode_barcode(self):
-        image = cvlib.load_image('../resources/barcode/barcode310.jpg')
+        image = cvlib.load_image('../resources/barcode/barcode114.png')
         cropped = scanner.detect_barcode(image=image,
                                          gamma=0.5,
                                          gaussian_ksize=(15, 15),
