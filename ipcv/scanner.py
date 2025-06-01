@@ -516,7 +516,7 @@ def decode_barcode(img):
     return decoded_text
 
 
-def decode_qrcode(img, box):
+def decode_qrcode(img):
     """
     This function is used only to verify the detected qrcode.
     :param box: The coordinates of the bounding box.
