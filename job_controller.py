@@ -8,7 +8,8 @@ from trace_handler import TraceHandler
 
 class JobController:
     """
-    Acknowledgement: No-image was taken from "https://www.flaticon.com/free-icons/no-image", and credit to sonnycandra.
+    This is a controller to coordinate UI and image processing tasks.
+    Acknowledgement: 'No-image' was taken from "https://www.flaticon.com/free-icons/no-image", and credit to sonnycandra.
     """
 
     NO_DISPLAY_IMG = 'resources/no-image.png'
@@ -87,7 +88,7 @@ class JobController:
             b_box = self.process_barcode(img)
             q_box = self.process_qrcode(img)
 
-            # TODO: To process the image annotation based on contours.
+            # Caters the three scenarios of processing barcode and qrcode together.
             if b_box is not None and q_box is not None:
                 # Both is present.
                 self.trace.write(
@@ -131,63 +132,26 @@ class JobController:
             self.trace.write(f"[{threading.currentThread().native_id}] Error: {e}")
 
     def process_barcode(self, img):
+        """
+        Processes the barcode-v3 using the scanner module.
+        :param img: The image to process.
+        :return: Returns the coordinates of the barcode.
+        """
         self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode ...')
-        # The copy is used in subsequent finding when barcode was not detected.
-        copy = img.copy()
-
-        # TODO: Integrated with barcode-detection v3.
-        # box = scanner.detect_barcode(image=copy,
-        #                              gamma=0.5,
-        #                              gaussian_ksize=(15, 15),
-        #                              gaussian_sigma=2,
-        #                              avg_ksize1=(9, 9),
-        #                              avg_ksize2=(3, 3),
-        #                              thresh_min=200,
-        #                              dilate_kernel=(21, 7),
-        #                              dilate_iteration=4,
-        #                              shrink_factor=6,
-        #                              offset=0)
-
-        box, p = scanner.detect_barcode_v3(copy, **parameters.barcode_general)
-        cnt = 0
-        detected = False
-        ksize = (21, 7)
+        box, p = scanner.detect_barcode_v3(img, **parameters.barcode_general)
         if box is not None:
             self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: OK')
         else:
-            # Few attempts before failing.
-            for i in range(1, 50, 5):
-                ksize = (21 + i, 7)
-                copy = img.copy()
-                self.trace.write(
-                    f'[{threading.currentThread().native_id}] Detecting barcode: ksize={ksize},attempt=[{cnt} ...]')
-                box = scanner.detect_barcode(image=copy,
-                                             gamma=0.5,
-                                             gaussian_ksize=(15, 15),
-                                             gaussian_sigma=2,
-                                             avg_ksize1=(9, 9),
-                                             avg_ksize2=(3, 3),
-                                             thresh_min=200,
-                                             dilate_kernel=ksize,
-                                             dilate_iteration=4,
-                                             shrink_factor=6,
-                                             offset=0)
-                if box is not None:
-                    detected = True
-                    break
-
-                cnt = cnt + 1
-
-            if detected:
-                self.trace.write(
-                    f'[{threading.currentThread().native_id}] Detecting barcode: OK, ksize={ksize},attempt=[{cnt}]')
-            else:
-                self.trace.write(
-                    f'[{threading.currentThread().native_id}] Detecting barcode: KO, ksize={ksize},attempt=[{cnt}]')
+            self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: KO')
 
         return box
 
     def process_qrcode(self, img):
+        """
+        Processes the qrcode using the scanner module.
+        :param img: The image to process.
+        :return: Returns the coordinates of the qrcode.
+        """
         self.trace.write(f'[{threading.currentThread().native_id}] Detecting qr-code ...')
         box = scanner.detect_qrcode(img.copy(),
                                     gamma=0.1,
@@ -203,68 +167,3 @@ class JobController:
             self.trace.write(f'[{threading.currentThread().native_id}] Detecting qr-code: KO')
 
         return box
-
-    def process_barcode_v2(self, img):
-        """
-        This function has adjustment using barcode detection using cv library. Therefore, this won't be used.
-        :param img:
-        :return:
-        """
-        self.trace.write(f'[{threading.currentThread().native_id}] Processing barcode ...')
-        # The copy is used in subsequent finding when barcode was not detected.
-        copy = img.copy()
-        cropped, contour = scanner.detect_barcode(image=img,
-                                                  gamma=0.5,
-                                                  gaussian_ksize=(15, 15),
-                                                  gaussian_sigma=2,
-                                                  avg_ksize1=(9, 9),
-                                                  avg_ksize2=(3, 3),
-                                                  thresh_min=200,
-                                                  dilate_kernel=(21, 7),
-                                                  dilate_iteration=4,
-                                                  shrink_factor=6,
-                                                  offset=0)
-        if cropped is not None:
-            cnt = 0
-            decoded = False
-            ksize = (21, 7)
-            self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: OK')
-
-            barcode = scanner.decode_barcode(cropped)
-            if barcode is not None:
-                decoded = True
-            else:
-                for i in range(1, 50, 5):
-                    ksize = (21 + i, 7)
-                    img = copy.copy()
-                    self.trace.write(
-                        f'[{threading.currentThread().native_id}] Detecting attempt [{cnt}] Increasing SE kernel {ksize} ...')
-                    cropped, contour = scanner.detect_barcode(image=img,
-                                                              gamma=0.5,
-                                                              gaussian_ksize=(15, 15),
-                                                              gaussian_sigma=2,
-                                                              avg_ksize1=(9, 9),
-                                                              avg_ksize2=(3, 3),
-                                                              thresh_min=200,
-                                                              dilate_kernel=ksize,
-                                                              dilate_iteration=4,
-                                                              shrink_factor=6,
-                                                              offset=0)
-                    barcode = scanner.decode_barcode(cropped)
-                    if barcode is not None:
-                        decoded = True
-                        break
-
-                    cnt = cnt + 1
-
-            if decoded:
-                self.trace.write(f'[{threading.currentThread().native_id}] Decoded: [{barcode}] using ksize={ksize}')
-            else:
-                self.trace.write(
-                    f'[{threading.currentThread().native_id}] No barcode detected at attempt [{cnt}] using max ksize={ksize}!')
-
-            # self.process_callback(img, cropped)
-        else:
-            self.trace.write(f'[{threading.currentThread().native_id}] Processing barcode: KO')
-
-        return img, cropped
