@@ -1,5 +1,17 @@
 """
 This module provides the barcode and qrcode scan functionality.
+:param kwargs (used in this module):
+- image (matrix): Image in which the barcode needs to be detected.
+- gamma (float): A number to set the gamma value.
+- gaussian_ksize (tuple): The gaussian kernel size used for smoothing an image. E.g. (3,3) or (9,9).
+- gaussian_sigma (float): The gaussian_sigma used for smoothing an image.
+- avg_ksize1 (tuple): The kernel size used for the first average smoothing. E.g. (3,3) or (9,9).
+- avg_ksize2 (tuple): The kernel size used for the second average smoothing. E.g. (3,3) or (9,9).
+- thresh_min (uint): The threshold value for binarizing an image.
+- dilate_kernel (tuple): The kernel size of structuring element used for dilation. E.g. (21,7) or (51,9).
+- dilate_iteration (uint): The number of interation the dilation is performed.
+- shrink_factor (uint):  The original image size is divided with shrink_factor to resize an image (shrinking).
+- offset (uint):  The offest of the box to resize to.
 """
 import threading
 from math import ceil
@@ -15,6 +27,14 @@ calculate_threshold = lambda t, i, d: ceil(t + (t * i * d))
 
 
 def preprocess_image(image, gamma, gaussian_ksize, gaussian_sigma):
+    """
+    Preprocesses the given image for code detection.
+    :param image: The image to preprocess.
+    :param gamma: The gamma value.
+    :param gaussian_ksize: The kernel size used for gaussian smoothing.
+    :param gaussian_sigma: The gaussian_sigma used for smoothing an image.
+    :return: The processed image.
+    """
     # Adjust the contrast
     p = cvlib.adjust_gamma(image, gamma)
 
@@ -28,6 +48,16 @@ def preprocess_image(image, gamma, gaussian_ksize, gaussian_sigma):
 
 
 def adjust_threshold(i, threshold_min, rate, black_pixels, white_pixels, max_pixel_limit):
+    """
+    Control logic used by detect_barcode v2.
+    :param i: The iteration count.
+    :param threshold_min: As documented in the module section.
+    :param rate: As documented in the module section.
+    :param black_pixels: The black pixels count.
+    :param white_pixels: The white pixels count.
+    :param max_pixel_limit: As documented in the module section.
+    :return:
+    """
     if threshold_min > MIN_THRESHOLD_LIMIT:
         return MIN_THRESHOLD_LIMIT, True
     elif black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
@@ -50,86 +80,49 @@ def adjust_threshold(i, threshold_min, rate, black_pixels, white_pixels, max_pix
             return thresh, False
 
 
-def detect_barcode_v3(image, **kwargs):
-    max_pixel_limit = int(kwargs['max_pixel_limit'])
-    min_threshold = int(kwargs['min_threshold'])
-    cropped = None
-    thresh_exceeded = False
-    box = None
-    cnt = 0
-    # To prevent repetition of warning.
-    displayed_warning = False
-    # Assign current-threshold for processing with config-threshold.
-    curr_threshold = int(kwargs['min_threshold'])
-    # Current processed image.
-    p = None
+def detect_barcode(**kwargs):
+    """
+    Processes the given image to detect barcode using the parameters documented in the module section.
+    :return: The detected rectangle's coordinates.
+    """
+    p = cvlib.convert_rgb2gray(kwargs['image'])
 
-    pre = preprocess_image(image, kwargs['gamma'], kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
-    image_size = image.shape[0] * image.shape[1]
-    print(f'Info                : size={image_size:,}, RxC=[{pre.shape[0]:,}x{pre.shape[1]:,}], '
-          f'box-ratio-on: {kwargs["box"]}, attempt-limit: {kwargs["attempt_limit"]}')
+    p = cvlib.adjust_gamma(p, kwargs['gamma'])
 
-    p = cvlib.binarize_inv(pre, curr_threshold)
+    p = cvlib.gaussian_blur(p, kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
 
-    for i in range(1, int(kwargs['attempt_limit']) + 1):
-        cnt = i
-        print(f'----------> [BEGIN, attempt={cnt}]')
+    p = cvlib.average_blur(p, kwargs['avg_ksize1'])
 
-        # Pixel-ratio checking:
-        black_pixels = imutil.pixel_percentage(p, imutil.BLACK_COLOR)
-        white_pixels = imutil.pixel_percentage(p, imutil.WHITE_COLOR)
-        if black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
-            print(
-                f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] Exceeded {max_pixel_limit:}% limit!')
-            break
-        else:
-            print(
-                f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] within {max_pixel_limit:}% limit.')
+    p = cvlib.detect_gradient(p)
 
-        print(f'[{i}] --Morphing      : dilation:erosion=[{kwargs["dilate_iteration"]}:{kwargs["erode_iteration"]}]')
+    # Only [3,3] works
+    p = cvlib.average_blur(p, kwargs['avg_ksize2'])
 
-        p = cvlib.morph_proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
-                                            kwargs['dilate_size'], kwargs['erode_size'])
+    p = cvlib.binarize(p, kwargs['thresh_min'])
 
-        # p = cvlib.morph_open(p, (45, 45))
-        # p = cvlib.morph_open(p, (15, 15))
+    # p = cvlib.dilate(p, kwargs['dilate_kernel'], kwargs['dilate_iteration'])
+    p = cvlib.morph_close(p, kwargs['dilate_kernel'])
+    p = cvlib.morph_dilate(p, kwargs['dilate_iteration'])
 
-        p = cvlib.gaussian_blur(p, kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+    # Record the image's original size for enlarging.
+    x = p
+    new_width = int(p.shape[1] / kwargs['shrink_factor'])
+    new_height = int(p.shape[0] / kwargs['shrink_factor'])
 
-        contour = shape.find_rectangle(processed_img=p,
-                                       min_area_factor=kwargs['min_area_factor'],
-                                       cnt=cnt,
-                                       box=kwargs['box'],
-                                       draw=True,
-                                       verbose=False)
-        if contour is not None:
-            rect = cv2.minAreaRect(contour)
-            box = np.intp(cv2.boxPoints(rect))
-            # TODO: Is this break stopping anything larger? This makes more than one ROI. So, need to choose the larger??
-            break
+    p = cvlib.resize_image(p, new_width, new_height)
 
-    # for i in range(1, int(kwargs['attempt_limit']) + 1):
-    #     print(f'[{i}] --Closing       : dilation:erosion=[{kwargs["dilate_iteration"]}:{kwargs["erode_iteration"]}]')
-    #     # p = cvlib.morph_dilate(p, kwargs["dilate_iteration"], (3, 3))
-    #     p = cvlib.morph_open(p, (25, 25))
-    #
-    #     contour = find_rectangle(source_img=image,
-    #                              processed_img=p,
-    #                              min_area_factor=kwargs['min_area_factor'],
-    #                              cnt=cnt,
-    #                              box=kwargs['box'],
-    #                              draw=False,
-    #                              verbose=False)
-    #     if contour is not None:
-    #         cropped = crop_roi(image, contour, GREEN)
-    #         break
+    p = cvlib.resize_image(p, x.shape[1], x.shape[0])
 
-    print(f'----------> [END, attempt={cnt}/{kwargs["attempt_limit"]}]\n')
-    # return cropped, p
-    return box, p
+    contour = shape.get_prominent_contour(p, kwargs['offset'])
+
+    return contour
 
 
 def detect_barcode_v2(image, **kwargs):
+    """
+    Processes the given image to detect barcode using the parameters documented in the module section.
+    :return: The detected rectangle's coordinates.
+    """
     max_pixel_limit = int(kwargs['max_pixel_limit'])
     min_threshold = int(kwargs['min_threshold'])
     cropped = None
@@ -234,68 +227,72 @@ def detect_barcode_v2(image, **kwargs):
     return cropped, p
 
 
-def detect_barcode(**kwargs):
+def detect_barcode_v3(image, **kwargs):
     """
-    Processed the given image to detect barcode using the following parameters:.
-    :param kwargs:
-    - image (matrix): Image in which the barcode needs to be detected.
-    - gamma (float): A number to set the gamma value.
-    - gaussian_ksize (tuple): The gaussian kernel size used for smoothing an image. E.g. (3,3) or (9,9).
-    - gaussian_sigma (float): The gaussian_sigma used for smoothing an image.
-    - avg_ksize1 (tuple): The kernel size used for the first average smoothing. E.g. (3,3) or (9,9).
-    - avg_ksize2 (tuple): The kernel size used for the second average smoothing. E.g. (3,3) or (9,9).
-    - thresh_min (uint): The threshold value for binarizing an image.
-    - dilate_kernel (tuple): The kernel size of structuring element used for dilation. E.g. (21,7) or (51,9).
-    - dilate_iteration (uint): The number of interation the dilation is performed.
-    - shrink_factor (uint):  The original image size is divided with shrink_factor to resize an image (shrinking).
-    - offset (uint):  The offest of the box to resize to.
-    :return: The detected barcodes are annotated on the original image first, and cropped barcode is returned.
+    Processes the given image to detect barcode using the parameters documented in the module section.
+    :return: The detected rectangle's coordinates.
     """
-    cropped = None
-    p = cvlib.convert_rgb2gray(kwargs['image'])
+    max_pixel_limit = int(kwargs['max_pixel_limit'])
+    box = None
+    cnt = 0
+    # Assign current-threshold for processing with config-threshold.
+    curr_threshold = int(kwargs['min_threshold'])
 
-    p = cvlib.adjust_gamma(p, kwargs['gamma'])
+    pre = preprocess_image(image, kwargs['gamma'], kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+    image_size = image.shape[0] * image.shape[1]
+    print(f'Info                : size={image_size:,}, RxC=[{pre.shape[0]:,}x{pre.shape[1]:,}], '
+          f'box-ratio-on: {kwargs["box"]}, attempt-limit: {kwargs["attempt_limit"]}')
 
-    p = cvlib.gaussian_blur(p, kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+    p = cvlib.binarize_inv(pre, curr_threshold)
 
-    p = cvlib.average_blur(p, kwargs['avg_ksize1'])
+    for i in range(1, int(kwargs['attempt_limit']) + 1):
+        cnt = i
+        print(f'----------> [BEGIN, attempt={cnt}]')
 
-    p = cvlib.detect_gradient(p)
+        # Pixel-ratio checking:
+        black_pixels = imutil.pixel_percentage(p, imutil.BLACK_COLOR)
+        white_pixels = imutil.pixel_percentage(p, imutil.WHITE_COLOR)
+        if black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
+            print(
+                f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] Exceeded {max_pixel_limit:}% limit!')
+            break
+        else:
+            print(
+                f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] within {max_pixel_limit:}% limit.')
 
-    # Only [3,3] works
-    p = cvlib.average_blur(p, kwargs['avg_ksize2'])
+        print(f'[{i}] --Morphing      : dilation:erosion=[{kwargs["dilate_iteration"]}:{kwargs["erode_iteration"]}]')
 
-    p = cvlib.binarize(p, kwargs['thresh_min'])
+        p = cvlib.morph_proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
+                                            kwargs['dilate_size'], kwargs['erode_size'])
 
-    # p = cvlib.dilate(p, kwargs['dilate_kernel'], kwargs['dilate_iteration'])
-    p = cvlib.morph_close(p, kwargs['dilate_kernel'])
-    p = cvlib.morph_dilate(p, kwargs['dilate_iteration'])
+        # TODO: To reconsider if needed because few parameters are not compatible.
+        # p = cvlib.morph_open(p, (45, 45))
+        # p = cvlib.morph_open(p, (15, 15))
 
-    # Record the image's original size for enlarging.
-    x = p
-    new_width = int(p.shape[1] / kwargs['shrink_factor'])
-    new_height = int(p.shape[0] / kwargs['shrink_factor'])
+        p = cvlib.gaussian_blur(p, kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
 
-    p = cvlib.resize_image(p, new_width, new_height)
+        contour = shape.find_rectangle(processed_img=p,
+                                       min_area_factor=kwargs['min_area_factor'],
+                                       cnt=cnt,
+                                       box=kwargs['box'],
+                                       draw=True,
+                                       verbose=False)
+        if contour is not None:
+            rect = cv2.minAreaRect(contour)
+            box = np.intp(cv2.boxPoints(rect))
+            # TODO: Is this break stopping anything larger? This makes more than one ROI. So, need to choose the larger??
+            break
 
-    p = cvlib.resize_image(p, x.shape[1], x.shape[0])
-
-    contour = shape.get_prominent_contour(p, kwargs['offset'])
-    #
-    # contour = find_rectangle(source_img=kwargs['image'],
-    #                          processed_img=p,
-    #                          min_area_factor=0.03,
-    #                          cnt=1,
-    #                          box=False,
-    #                          draw=True,
-    #                          verbose=True)
-    # if contour is not None:
-    #     cropped = crop_roi(kwargs['image'], contour, GREEN)
-
-    return contour
+    print(f'----------> [END, attempt={cnt}/{kwargs["attempt_limit"]}]\n')
+    return box, p
 
 
 def detect_qrcode(image, **kwargs):
+    """
+    Processes the given image to detect qrcode using the parameters documented in the module section.
+    :param image: The image to process.
+    :return: The detected rectangle's coordinates.
+    """
     pre = preprocess_image(image, kwargs['gamma'], kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
     binary = cv2.threshold(pre, kwargs['thresh_min'], 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
 
@@ -339,7 +336,7 @@ def decode_barcode(img):
     """
     This function is used only to verify the detected barcode.
     :param img: The cropped image with barcode detected.
-    :return:
+    :return: barcode when detected.
     """
     try:
         detector = cv2.barcode_BarcodeDetector()
@@ -355,7 +352,7 @@ def decode_qrcode(img):
     """
     This function is used only to verify the detected qrcode.
     :param img: The cropped image with barcode detected.
-    :return:
+    :return: qrcode when detected.
     """
     try:
         detector = cv2.QRCodeDetector()

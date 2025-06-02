@@ -144,7 +144,7 @@ def morph_erode(image, iterations, ksize=None):
     """
     Performs erode operation on the given image using the given kernel.
     :param image: The image to erode.
-    :param ksize: The the kernel to use.
+    :param ksize: The kernel to use.
     :param iterations: The number of iterations to perform.
     :return: The eroded image.
     """
