@@ -9,7 +9,17 @@ from ipcv.cvlib import resize_box
 
 
 def find_rectangle(processed_img, min_area_factor, cnt, box=False, draw=False, verbose=False):
-    # RETR_EXTERNAL - does not return inner rect that meets the requirement.
+    """
+    Finds a rectangle in the image and returns it's coordinates.
+    :param processed_img: The processed image.
+    :param min_area_factor: Minimum area to consider a rectangle.
+    :param cnt: The current parent iteration count.
+    :param box: Is the rectangle a box (aspect ratio 1:2).
+    :param draw: For debugging purposes - draws rectangles.
+    :param verbose: For debugging purposes - prints debugging information.
+    :return: The coordinates of the rectangle.
+    """
+    # TODO: RETR_EXTERNAL (as disabled below) - does not return inner rect that meets the requirement.
     # contours, _ = cv2.findContours(processed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours, _ = cv2.findContours(processed_img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -69,8 +79,7 @@ def find_rectangle(processed_img, min_area_factor, cnt, box=False, draw=False, v
                                 f'at rate={(selected_max_area / image_area) * 100:.2f}%')
                             selected_max_contour = contour
                 else:
-                    # Define rectangle criteria.
-
+                    # Define the rectangle's criteria.
                     if min_required_area < calculated_area < max_required_area:
                         if calculated_area > selected_max_area:
                             # if 1.2 < calculated_aspect_ratio < 3:
@@ -84,6 +93,7 @@ def find_rectangle(processed_img, min_area_factor, cnt, box=False, draw=False, v
             if verbose:
                 print('\r')
     return selected_max_contour
+
 
 def get_prominent_contour(processed_image, offset=0):
     """
@@ -102,12 +112,4 @@ def get_prominent_contour(processed_image, offset=0):
     # Increase the box offset for better detection.
     box = resize_box(box, offset)
 
-    # TODO: This was disabled for controller integration.
-    # # draw a bounding box rounded the detected barcode and display the image
-    # cv2.drawContours(source_image, [box], -1, (0, 255, 0), 3);
-    #
-    # [X, Y, W, H] = cv2.boundingRect(box)
-    # cropped = source_image[Y - offset:Y + H + offset, X + offset:X + W + offset]
-    #
-    # return cropped, box
     return box
