@@ -1,15 +1,12 @@
 """
 This module provides the barcode and qrcode scan functionality.
 """
-import math
 from math import ceil
 
 import cv2
 import numpy as np
 
-from ipcv import cvlib
-
-from ipcv import imutil
+from ipcv import cvlib, imutil, shape
 
 MIN_THRESHOLD_LIMIT = 220
 
@@ -27,84 +24,6 @@ def preprocess_image(image, gamma, gaussian_ksize, gaussian_sigma):
     p = cvlib.gaussian_blur(p, gaussian_ksize, gaussian_sigma)
 
     return p
-
-
-def find_rectangle(processed_img, min_area_factor, cnt, box=False, draw=False, verbose=False):
-    # RETR_EXTERNAL - does not return inner rect that meets the requirement.
-    # contours, _ = cv2.findContours(processed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours, _ = cv2.findContours(processed_img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-
-    image_area = processed_img.shape[0] * processed_img.shape[1]
-    min_required_area = image_area * min_area_factor
-    max_required_area = image_area - (image_area * 0.3)
-    print(
-        f'[{cnt}] --Contour       : found={len(contours)}; min-req-area={min_required_area:,.2f}, max-req-area={max_required_area:,.2f} '
-        f'({min_area_factor} at rate); area should be > {(min_required_area / image_area) * 100:.2f}%')
-
-    selected_max_contour = None
-    selected_max_area = 0
-
-    # Epsilon: is maximum distance from contour to approximated contour.
-    # eps = 0.04
-    eps = 0.0391
-    # eps = 0.05
-
-    curr_cnt = 1
-    # Contour has coordinates for drawing the detected shape (polygons - can be more than 3 or 4)
-    for contour in contours:
-        # Contour-perimeter: calculates the perimeter for the given points when it's a closed lines.
-        perimeter = cv2.arcLength(contour, True)
-
-        # Ramer–Douglas–Peucker algorithm: It approximates a contour shape to another shape with reduced vertices
-        # depending upon the precision of epsilon. So, coordinates for polygons are returned.
-        approx = cv2.approxPolyDP(contour, eps * perimeter, True)
-        if draw: cv2.drawContours(processed_img, [approx], -1, imutil.BLUE_COLOR, 3)
-
-        # Only polygons with 4 angles are considered since a box or rectangle is needed.
-        if len(approx) == 4:
-            calculated_area = cv2.contourArea(contour)
-
-            # Retrieve the four coordinates (of a most-likely rectangle) to verify if it is a rectangle.
-            [a, b, c, d] = imutil.rectangle_coordinates(approx)
-            if verbose:
-                print(f'[c:{curr_cnt}] --Contour     : calculated area={calculated_area:,.2f}, '
-                      f'coordinates (X,Y)=[A=({a}), B=({b}), C=({c}), D=({d})]')
-
-            if (imutil.is_perpendicular_angle(imutil.calculate_angle(a, b, c))
-                    and imutil.is_perpendicular_angle(imutil.calculate_angle(b, c, d))
-                    and imutil.is_perpendicular_angle(imutil.calculate_angle(c, d, a))
-                    and imutil.is_perpendicular_angle(imutil.calculate_angle(d, a, b))):
-
-                (x, y, w, h) = cv2.boundingRect(approx)
-                calculated_aspect_ratio = w / float(h)
-                if verbose:
-                    print(f'[c:{curr_cnt}] --Contour     : calculated ratio={calculated_aspect_ratio:,.2f}')
-
-                # Selecting the coordinates that fulfills min required area for box and rectangle.
-                if box:
-                    if calculated_area > min_required_area and 0.8 <= calculated_aspect_ratio <= 1.2:
-                        if calculated_area > selected_max_area:
-                            selected_max_area = calculated_area
-                            print(
-                                f'[c:{curr_cnt}] --Contour(box) : selected max-area={selected_max_area:,.2f} '
-                                f'at rate={(selected_max_area / image_area) * 100:.2f}%')
-                            selected_max_contour = contour
-                else:
-                    # Define rectangle criteria.
-
-                    if min_required_area < calculated_area < max_required_area:
-                        if calculated_area > selected_max_area:
-                            # if 1.2 < calculated_aspect_ratio < 3:
-                            if calculated_aspect_ratio > 1.2 and calculated_aspect_ratio < 6:
-                                selected_max_area = calculated_area
-                                print(
-                                    f'[c:{curr_cnt}] --Contour     : selected max-area={selected_max_area:,.2f} '
-                                    f'at rate={(selected_max_area / image_area) * 100:.2f}, aspect-ratio={calculated_aspect_ratio:.6f}')
-                                selected_max_contour = contour
-            curr_cnt += 1
-            if verbose:
-                print('\r')
-    return selected_max_contour
 
 
 def adjust_threshold(i, threshold_min, rate, black_pixels, white_pixels, max_pixel_limit):
@@ -176,12 +95,12 @@ def detect_barcode_v3(image, **kwargs):
 
         p = cvlib.gaussian_blur(p, kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
 
-        contour = find_rectangle(processed_img=p,
-                                 min_area_factor=kwargs['min_area_factor'],
-                                 cnt=cnt,
-                                 box=kwargs['box'],
-                                 draw=True,
-                                 verbose=False)
+        contour = shape.find_rectangle(processed_img=p,
+                                       min_area_factor=kwargs['min_area_factor'],
+                                       cnt=cnt,
+                                       box=kwargs['box'],
+                                       draw=True,
+                                       verbose=False)
         if contour is not None:
             rect = cv2.minAreaRect(contour)
             box = np.intp(cv2.boxPoints(rect))
@@ -300,7 +219,7 @@ def detect_barcode_v2(image, **kwargs):
         p = cvlib.morph_proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
                                             kwargs['dilate_size'], kwargs['erode_size'])
 
-        contour = find_rectangle(processed_img=p,
+        contour = shape.find_rectangle(processed_img=p,
                                  min_area_factor=kwargs['min_area_factor'],
                                  cnt=cnt,
                                  box=kwargs['box'],
@@ -360,7 +279,7 @@ def detect_barcode(**kwargs):
 
     p = cvlib.resize_image(p, x.shape[1], x.shape[0])
 
-    contour = cvlib.get_prominent_contour(p, kwargs['offset'])
+    contour = shape.get_prominent_contour(p, kwargs['offset'])
     #
     # contour = find_rectangle(source_img=kwargs['image'],
     #                          processed_img=p,
@@ -397,7 +316,7 @@ def detect_qrcode(image, **kwargs):
         # p = cv2.morphologyEx(p, cv2.MORPH_OPEN, rect)
         p = cv2.morphologyEx(p, cv2.MORPH_CLOSE, rect)
 
-        contour = find_rectangle(processed_img=p,
+        contour = shape.find_rectangle(processed_img=p,
                                  min_area_factor=kwargs['min_area_factor'],
                                  cnt=i,
                                  box=kwargs['box'],

@@ -157,34 +157,6 @@ def resize_box(box, offset):
     return box
 
 
-def get_prominent_contour(processed_image, offset=0):
-    """
-    Gets the prominent contour from the given processed image and draws a box on the source image.
-    :param processed_image: The processed image to trace the biggest contour on.
-    :param offset: The offset of the box to resize to.
-    :return: Returns the prominent contour.
-    """
-    contours, hierarchy = cv2.findContours(processed_image.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    c = sorted(contours, key=cv2.contourArea, reverse=True)[0]
-
-    # compute the rotated bounding box of the largest contour
-    rect = cv2.minAreaRect(c)
-    box = np.intp(cv2.boxPoints(rect))
-
-    # Increase the box offset for better detection.
-    box = resize_box(box, offset)
-
-    # TODO: This was disabled for controller integration.
-    # # draw a bounding box rounded the detected barcode and display the image
-    # cv2.drawContours(source_image, [box], -1, (0, 255, 0), 3);
-    #
-    # [X, Y, W, H] = cv2.boundingRect(box)
-    # cropped = source_image[Y - offset:Y + H + offset, X + offset:X + W + offset]
-    #
-    # return cropped, box
-    return box
-
-
 def detect_gradient(image):
     """
     Detects the magnitude of vertical and horizontal gradients of the given image for both .
