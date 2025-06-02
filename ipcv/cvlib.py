@@ -97,6 +97,24 @@ def morph_close(image, ksize=None):
     return cv2.morphologyEx(image, cv2.MORPH_CLOSE, se)
 
 
+def morph_proportionate_close(image, dilate_iteration, erode_iteration, dilate_size, erode_size):
+    """
+    Performs close operation on the given image using the given kernel and iterations.
+    :param image: The image to perform close operation on.
+    :param dilate_iteration: The number of iterations to perform dilate.
+    :param erode_iteration:  The number of iterations to perform erode.
+    :param dilate_size: The size of the kernel to use for dilate.
+    :param erode_size:  The size of the kernel to use for erode.
+    :return:
+    """
+    horizontal_se = np.ones((1, dilate_size)).astype('uint8')
+    vertical_se = np.ones((erode_size, 1)).astype('uint8')
+
+    image = cv2.dilate(image, horizontal_se, iterations=dilate_iteration)
+    image = cv2.erode(image, vertical_se, iterations=erode_iteration)
+    return image
+
+
 def morph_dilate(image, iterations, ksize=None):
     """
     Performs dilate operation on the given image using the given kernel.

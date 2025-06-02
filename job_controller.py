@@ -2,7 +2,7 @@ import threading
 
 from ipcv.camera import Camera
 from config import parameters
-from ipcv import cvlib, scanner
+from ipcv import cvlib, scanner, imutil
 from utility.trace_handler import TraceHandler
 
 
@@ -93,8 +93,8 @@ class JobController:
                 # Both is present.
                 self.trace.write(
                     f'[{threading.currentThread().native_id}] Processing detected both barcode & qrcode ...')
-                scanner.draw_bounding_box2(img, b_box, scanner.GREEN)
-                scanner.draw_bounding_box2(img, q_box, scanner.BLUE)
+                imutil.draw_bounding_box2(img, b_box, imutil.GREEN_COLOR)
+                imutil.draw_bounding_box2(img, q_box, imutil.BLUE_COLOR)
                 cropped = img
                 # TODO: Bigger box or intersection need to be calculated. For now, the whole image can be shown.
             elif b_box is None and q_box is None:
@@ -106,15 +106,15 @@ class JobController:
                 # Either is present.
                 if b_box is not None:
                     self.trace.write(f'[{threading.currentThread().native_id}] Processing detected barcode ...')
-                    scanner.draw_bounding_box2(img, b_box, scanner.GREEN)
-                    cropped = scanner.crop_roi2(img, b_box)
+                    imutil.draw_bounding_box2(img, b_box, imutil.GREEN_COLOR)
+                    cropped = imutil.crop_roi2(img, b_box)
                     if cropped is not None:
                         code = scanner.decode_barcode(cropped)
                         self.trace.write(f'[{threading.currentThread().native_id}] Decoded barcode : {code}')
                 if q_box is not None:
                     self.trace.write(f'[{threading.currentThread().native_id}] Processing detected qrcode ...')
-                    scanner.draw_bounding_box2(img, b_box, scanner.BLUE)
-                    cropped = scanner.crop_roi2(img, b_box)
+                    imutil.draw_bounding_box2(img, b_box, imutil.BLUE_COLOR)
+                    cropped = imutil.crop_roi2(img, b_box)
                     if cropped is not None:
                         code = scanner.decode_qrcode(cropped)
                         self.trace.write(f'[{threading.currentThread().native_id}] Decoded barcode : {code}')

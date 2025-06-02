@@ -9,11 +9,7 @@ import numpy as np
 
 from ipcv import cvlib
 
-BLUE = (0, 0, 255)
-GREEN = (0, 255, 0)
-RED = (255, 0, 0)
-BLACK = 0
-WHITE = 255
+from ipcv import imutil
 
 MIN_THRESHOLD_LIMIT = 220
 
@@ -31,85 +27,6 @@ def preprocess_image(image, gamma, gaussian_ksize, gaussian_sigma):
     p = cvlib.gaussian_blur(p, gaussian_ksize, gaussian_sigma)
 
     return p
-
-
-def calculate_angle(point_a, point_b, point_c):
-    """Calculates the angle formed by three points.
-
-    Args:
-        point_a: A tuple or list representing the coordinates of point A (x1, y1).
-        point_b: A tuple or list representing the coordinates of point B (x2, y2).
-        point_c: A tuple or list representing the coordinates of point C (x3, y3).
-
-    Returns:
-        The angle in degrees.
-    """
-    x1, y1 = point_a
-    x2, y2 = point_b
-    x3, y3 = point_c
-
-    # Create vectors
-    vector_ba = (x1 - x2, y1 - y2)
-    vector_bc = (x3 - x2, y3 - y2)
-
-    # Calculate the dot product
-    dot_product = vector_ba[0] * vector_bc[0] + vector_ba[1] * vector_bc[1]
-
-    # Calculate the magnitudes
-    magnitude_ba = math.sqrt(vector_ba[0] ** 2 + vector_ba[1] ** 2)
-    magnitude_bc = math.sqrt(vector_bc[0] ** 2 + vector_bc[1] ** 2)
-
-    # Calculate the cosine of the angle
-    cos_theta = dot_product / (magnitude_ba * magnitude_bc)
-
-    # Calculate the angle in radians
-    angle_rad = math.acos(cos_theta)
-
-    # Convert the angle to degrees
-    angle_deg = math.degrees(angle_rad)
-
-    return angle_deg
-
-
-def crop_roi(image, max_contour, color):
-    perimeter = cv2.arcLength(max_contour, True)
-    approx = cv2.approxPolyDP(max_contour, 0.04 * perimeter, True)
-    cv2.drawContours(image, [approx], -1, color, 3)
-    (x, y, w, h) = cv2.boundingRect(approx)
-    return image[y:y + h, x:x + w]
-
-
-def draw_bounding_box(image, contour, color):
-    perimeter = cv2.arcLength(contour, True)
-    approx = cv2.approxPolyDP(contour, 0.04 * perimeter, True)
-    cv2.drawContours(image, [approx], -1, color, 3)
-
-
-def draw_bounding_box2(image, box, color):
-    cv2.drawContours(image, [box], -1, color, 3)
-
-
-def crop_roi2(image, box):
-    (x, y, w, h) = cv2.boundingRect(box)
-    return image[y:y + h, x:x + w]
-
-
-def is_perpendicular_angle(angle):
-    # print(f'angle:{angle}')
-    if abs(90 - angle) < 10:
-        return True
-    else:
-        return False
-
-
-def rectangle_coordinates(approx):
-    """
-    Reshapes the approx coordinates of a rectangle inside a list-of-list to flat-list and returns the four coordinates.
-    :param approx: Coordinates of a most-likely rectangle.
-    :return: Four coordinates.
-    """
-    coordinates = approx.reshape(4, 2)
-    return coordinates[0], coordinates[1], coordinates[2], coordinates[3]
 
 
 def find_rectangle(processed_img, min_area_factor, cnt, box=False, draw=False, verbose=False):
@@ -141,22 +58,22 @@ def find_rectangle(processed_img, min_area_factor, cnt, box=False, draw=False, v
         # Ramer–Douglas–Peucker algorithm: It approximates a contour shape to another shape with reduced vertices
         # depending upon the precision of epsilon. So, coordinates for polygons are returned.
         approx = cv2.approxPolyDP(contour, eps * perimeter, True)
-        if draw: cv2.drawContours(processed_img, [approx], -1, BLUE, 3)
+        if draw: cv2.drawContours(processed_img, [approx], -1, imutil.BLUE_COLOR, 3)
 
         # Only polygons with 4 angles are considered since a box or rectangle is needed.
         if len(approx) == 4:
             calculated_area = cv2.contourArea(contour)
 
             # Retrieve the four coordinates (of a most-likely rectangle) to verify if it is a rectangle.
-            [a, b, c, d] = rectangle_coordinates(approx)
+            [a, b, c, d] = imutil.rectangle_coordinates(approx)
             if verbose:
                 print(f'[c:{curr_cnt}] --Contour     : calculated area={calculated_area:,.2f}, '
                       f'coordinates (X,Y)=[A=({a}), B=({b}), C=({c}), D=({d})]')
 
-            if (is_perpendicular_angle(calculate_angle(a, b, c))
-                    and is_perpendicular_angle(calculate_angle(b, c, d))
-                    and is_perpendicular_angle(calculate_angle(c, d, a))
-                    and is_perpendicular_angle(calculate_angle(d, a, b))):
+            if (imutil.is_perpendicular_angle(imutil.calculate_angle(a, b, c))
+                    and imutil.is_perpendicular_angle(imutil.calculate_angle(b, c, d))
+                    and imutil.is_perpendicular_angle(imutil.calculate_angle(c, d, a))
+                    and imutil.is_perpendicular_angle(imutil.calculate_angle(d, a, b))):
 
                 (x, y, w, h) = cv2.boundingRect(approx)
                 calculated_aspect_ratio = w / float(h)
@@ -188,28 +105,6 @@ def find_rectangle(processed_img, min_area_factor, cnt, box=False, draw=False, v
             if verbose:
                 print('\r')
     return selected_max_contour
-
-
-def proportionate_close(image, dilate_iteration, erode_iteration, dilate_size, erode_size):
-    # horizontal_se = np.array([
-    #     [1, 1, 1]
-    # ])
-    #
-    # vertical_se = np.array([
-    #     [1],
-    #     [1]
-    # ])
-
-    horizontal_se = np.ones((1, dilate_size)).astype('uint8')
-    vertical_se = np.ones((erode_size, 1)).astype('uint8')
-
-    image = cv2.dilate(image, horizontal_se, iterations=dilate_iteration)
-    image = cv2.erode(image, vertical_se, iterations=erode_iteration)
-    return image
-
-
-def pixel_percentage(image, color):
-    return np.sum(image == color) / (image.shape[0] * image.shape[1]) * 100
 
 
 def adjust_threshold(i, threshold_min, rate, black_pixels, white_pixels, max_pixel_limit):
@@ -261,8 +156,8 @@ def detect_barcode_v3(image, **kwargs):
         print(f'----------> [BEGIN, attempt={cnt}]')
 
         # Pixel-ratio checking:
-        black_pixels = pixel_percentage(p, BLACK)
-        white_pixels = pixel_percentage(p, WHITE)
+        black_pixels = imutil.pixel_percentage(p, imutil.BLACK_COLOR)
+        white_pixels = imutil.pixel_percentage(p, imutil.WHITE_COLOR)
         if black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
             print(
                 f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] Exceeded {max_pixel_limit:}% limit!')
@@ -273,8 +168,8 @@ def detect_barcode_v3(image, **kwargs):
 
         print(f'[{i}] --Morphing      : dilation:erosion=[{kwargs["dilate_iteration"]}:{kwargs["erode_iteration"]}]')
 
-        p = proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
-                                kwargs['dilate_size'], kwargs['erode_size'])
+        p = cvlib.morph_proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
+                                            kwargs['dilate_size'], kwargs['erode_size'])
 
         # p = cvlib.morph_open(p, (45, 45))
         # p = cvlib.morph_open(p, (15, 15))
@@ -340,8 +235,8 @@ def detect_barcode_v2(image, **kwargs):
             p = cvlib.binarize_inv(pre, curr_threshold)
 
             # Get pixel values in % after binarization.
-            black_pixels = pixel_percentage(p, BLACK)
-            white_pixels = pixel_percentage(p, WHITE)
+            black_pixels = imutil.pixel_percentage(p, imutil.BLACK_COLOR)
+            white_pixels = imutil.pixel_percentage(p, imutil.WHITE_COLOR)
 
             # No logic processing, only for displaying.
             if black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
@@ -390,8 +285,8 @@ def detect_barcode_v2(image, **kwargs):
                 continue
 
         # Pixel-ratio checking:
-        black_pixels = pixel_percentage(p, BLACK)
-        white_pixels = pixel_percentage(p, WHITE)
+        black_pixels = imutil.pixel_percentage(p, imutil.BLACK_COLOR)
+        white_pixels = imutil.pixel_percentage(p, imutil.WHITE_COLOR)
         if black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
             print(
                 f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] Exceeded {max_pixel_limit:}% limit!')
@@ -402,8 +297,8 @@ def detect_barcode_v2(image, **kwargs):
 
         print(f'[{i}] --Morphing      : dilation:erosion=[{kwargs["dilate_iteration"]}:{kwargs["erode_iteration"]}]')
 
-        p = proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
-                                kwargs['dilate_size'], kwargs['erode_size'])
+        p = cvlib.morph_proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
+                                            kwargs['dilate_size'], kwargs['erode_size'])
 
         contour = find_rectangle(processed_img=p,
                                  min_area_factor=kwargs['min_area_factor'],
@@ -412,7 +307,7 @@ def detect_barcode_v2(image, **kwargs):
                                  draw=False,
                                  verbose=False)
         if contour is not None:
-            cropped = crop_roi(image, contour, GREEN)
+            cropped = imutil.crop_roi(image, contour, imutil.GREEN_COLOR)
             break
 
     print(f'----------> [END, attempt={cnt}/{kwargs["attempt_limit"]}]\n')
@@ -533,7 +428,6 @@ def decode_barcode(img):
 def decode_qrcode(img):
     """
     This function is used only to verify the detected qrcode.
-    :param box: The coordinates of the bounding box.
     :param img: The cropped image with barcode detected.
     :return:
     """
