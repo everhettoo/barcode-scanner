@@ -138,7 +138,7 @@ class JobController:
         :return: Returns the coordinates of the barcode.
         """
         self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode ...')
-        box, p = scanner.detect_barcode_v3(img, **parameters.barcode_general)
+        box, p = scanner.detect_barcode_v3(img, **parameters.v3_general)
         if box is not None:
             self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: OK')
         else:
