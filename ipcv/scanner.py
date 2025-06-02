@@ -1,6 +1,7 @@
 """
 This module provides the barcode and qrcode scan functionality.
 """
+import threading
 from math import ceil
 
 import cv2
@@ -220,11 +221,11 @@ def detect_barcode_v2(image, **kwargs):
                                             kwargs['dilate_size'], kwargs['erode_size'])
 
         contour = shape.find_rectangle(processed_img=p,
-                                 min_area_factor=kwargs['min_area_factor'],
-                                 cnt=cnt,
-                                 box=kwargs['box'],
-                                 draw=False,
-                                 verbose=False)
+                                       min_area_factor=kwargs['min_area_factor'],
+                                       cnt=cnt,
+                                       box=kwargs['box'],
+                                       draw=False,
+                                       verbose=False)
         if contour is not None:
             cropped = imutil.crop_roi(image, contour, imutil.GREEN_COLOR)
             break
@@ -300,28 +301,33 @@ def detect_qrcode(image, **kwargs):
 
     vertical = cv2.getStructuringElement(cv2.MORPH_CROSS, (1, 3))
     horizontal = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 1))
-    rect = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
     p = binary
     box = None
     for i in range(1, 3):
-        p = cv2.dilate(p, vertical, iterations=3)
-        p = cv2.dilate(p, horizontal, iterations=3)
-        # p = cv2.morphologyEx(p, cv2.MORPH_OPEN, rect)
-        p = cv2.erode(p, horizontal, iterations=2)
-        p = cv2.erode(p, vertical, iterations=2)
-        # p = cv2.dilate(p, rect, iterations=1)
-        p = cv2.morphologyEx(p, cv2.MORPH_CLOSE, rect)
-        p = cv2.dilate(p, vertical, iterations=1)
-        p = cv2.dilate(p, horizontal, iterations=1)
-        # p = cv2.morphologyEx(p, cv2.MORPH_OPEN, rect)
-        p = cv2.morphologyEx(p, cv2.MORPH_CLOSE, rect)
+        # Dilate both ways in same ratio
+        p = cvlib.morph_dilate_ex(p, vertical, 3)
+        p = cvlib.morph_dilate_ex(p, horizontal, 3)
+
+        # Erode both ways in same ratio
+        p = cvlib.morph_erode_ex(p, horizontal, 2)
+        p = cvlib.morph_erode_ex(p, vertical, 2)
+
+        # Close the openings.
+        p = cvlib.morph_close(p, (3, 3))
+
+        # Dilate both ways in same ratio
+        p = cvlib.morph_dilate_ex(p, vertical, 1)
+        p = cvlib.morph_dilate_ex(p, horizontal, 1)
+
+        # Close the openings.
+        p = cvlib.morph_close(p, (3, 3))
 
         contour = shape.find_rectangle(processed_img=p,
-                                 min_area_factor=kwargs['min_area_factor'],
-                                 cnt=i,
-                                 box=kwargs['box'],
-                                 draw=False,
-                                 verbose=False)
+                                       min_area_factor=kwargs['min_area_factor'],
+                                       cnt=i,
+                                       box=kwargs['box'],
+                                       draw=False,
+                                       verbose=False)
         if contour is not None:
             rect = cv2.minAreaRect(contour)
             box = np.intp(cv2.boxPoints(rect))
@@ -335,13 +341,14 @@ def decode_barcode(img):
     :param img: The cropped image with barcode detected.
     :return:
     """
-    detector = cv2.barcode_BarcodeDetector()
-    # decoded_text, points, barcode_type = detector.detectAndDecode(img)
-    decoded_text, _, _ = detector.detectAndDecode(img)
-    if decoded_text == '':
+    try:
+        detector = cv2.barcode_BarcodeDetector()
+        # decoded_text, points, barcode_type = detector.detectAndDecode(img)
+        decoded_text, _, _ = detector.detectAndDecode(img)
+        return decoded_text
+    except Exception as e:
+        print(f"scanner: [{threading.currentThread().native_id}] Error: {e}")
         return None
-
-    return decoded_text
 
 
 def decode_qrcode(img):
@@ -350,11 +357,10 @@ def decode_qrcode(img):
     :param img: The cropped image with barcode detected.
     :return:
     """
-    detector = cv2.QRCodeDetector()
-
-    # Check if a QR code was detected
-    decoded_text, _, _ = detector.detectAndDecode(img)
-    if decoded_text == '':
+    try:
+        detector = cv2.QRCodeDetector()
+        decoded_text, _, _ = detector.detectAndDecode(img)
+        return decoded_text
+    except Exception as e:
+        print(f"scanner: [{threading.currentThread().native_id}] Error: {e}")
         return None
-
-    return decoded_text

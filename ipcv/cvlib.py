@@ -129,11 +129,22 @@ def morph_dilate(image, iterations, ksize=None):
     return cv2.dilate(image, se, iterations=iterations)
 
 
+def morph_dilate_ex(image, kernel, iterations):
+    """
+    Performs dilate operation on the given image using the given kernel.
+    :param image: The image to dilate.
+    :param kernel: The kernel to use.
+    :param iterations: The number of iterations to perform.
+    :return: The dilated image.
+    """
+    return cv2.dilate(image, kernel, iterations=iterations)
+
+
 def morph_erode(image, iterations, ksize=None):
     """
     Performs erode operation on the given image using the given kernel.
     :param image: The image to erode.
-    :param ksize: The size of the kernel to use.
+    :param ksize: The the kernel to use.
     :param iterations: The number of iterations to perform.
     :return: The eroded image.
     """
@@ -141,6 +152,17 @@ def morph_erode(image, iterations, ksize=None):
     if ksize is not None:
         se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
     return cv2.erode(image, se, iterations=iterations)
+
+
+def morph_erode_ex(image, kernel, iterations):
+    """
+    Performs erode operation on the given image using the given kernel.
+    :param image: The image to erode.
+    :param kernel: The kernel to use.
+    :param iterations: The number of iterations to perform.
+    :return: The eroded image.
+    """
+    return cv2.erode(image, kernel, iterations=iterations)
 
 
 def resize_box(box, offset):
