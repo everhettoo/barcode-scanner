@@ -1,3 +1,6 @@
+"""
+A module to wrap commonly used image processing functions.
+"""
 import math
 
 import cv2
@@ -197,7 +200,7 @@ def binarize(image, min_val=127):
 
 def binarize_inv(image, min_val=127):
     """
-    Binarize the given image with a given minimum threshold value.
+    Performs binarization and inverts the values for the given image with a given minimum threshold value.
     :param image: The image to binarize.
     :param min_val: Any value below this threshold will be set to 0.
     :return: A binarized image.

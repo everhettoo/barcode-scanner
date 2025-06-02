@@ -1,3 +1,6 @@
+"""
+This module provides the barcode and qrcode scan functionality.
+"""
 import math
 from math import ceil
 

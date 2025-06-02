@@ -3,6 +3,10 @@ from PyQt6.QtCore import QTimer
 
 
 class Camera:
+    """
+    A class to capture images from a camera using opencv.
+    """
+
     def __init__(self, device, callback, interval):
         self.video_capture = None
         self.device = device
