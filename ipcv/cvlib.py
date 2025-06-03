@@ -71,30 +71,32 @@ def average_blur(image, ksize):
     return np.array(255 * (blurred / 255), dtype='uint8')
 
 
-def morph_open(image, ksize=None):
+def morph_open(image, ksize=None, iteration=1):
     """
     Performs open operation on the given image using the given kernel.
     :param image: The image to perform open operation on.
     :param ksize: The size of the kernel to use.
+    :param iteration: The number of iterations to perform.
     :return: The opened image.
     """
     se = None
     if ksize is not None:
         se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
-    return cv2.morphologyEx(image, cv2.MORPH_OPEN, se)
+    return cv2.morphologyEx(image, cv2.MORPH_OPEN, se, iteration)
 
 
-def morph_close(image, ksize=None):
+def morph_close(image, ksize=None, iteration=1):
     """
     Performs close operation on the given image using the given kernel.
     :param image: The image to perform close operation on.
     :param ksize: The size of the kernel to use.
+    :param iteration: The number of iterations to perform.
     :return: The closed image.
     """
     se = None
     if ksize is not None:
         se = cv2.getStructuringElement(cv2.MORPH_RECT, ksize)
-    return cv2.morphologyEx(image, cv2.MORPH_CLOSE, se)
+    return cv2.morphologyEx(image, cv2.MORPH_CLOSE, se, iteration)
 
 
 def morph_proportionate_close(image, dilate_iteration, erode_iteration, dilate_size, erode_size):

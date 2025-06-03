@@ -119,3 +119,19 @@ v3_special = {'gamma': 1,
               'erode_size': 2,
               'min_area_factor': 0.03,
               'box': False}
+
+"""
+The version 3 was experimented to improve barcode and qr-code detection based on segmentation using a threshold.
+"""
+v4_general = {'gamma': 0.5,
+              'gaussian_ksize': (15, 15),
+              'gaussian_sigma': 2,
+              'min_threshold': 200,
+              'max_pixel_limit': 100,
+              'attempt_limit': 50,
+              'dilate_iteration': 4,
+              'erode_iteration': 2,
+              'dilate_size': 4,
+              'erode_size': 1,
+              'min_area_factor': 0.03,
+              'box': False}

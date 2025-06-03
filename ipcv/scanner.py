@@ -47,6 +47,27 @@ def preprocess_image(image, gamma, gaussian_ksize, gaussian_sigma):
     return p
 
 
+def preprocess_image2(image, gamma, gaussian_ksize, gaussian_sigma):
+    """
+    Preprocesses the given image for code detection.
+    :param image: The image to preprocess.
+    :param gamma: The gamma value.
+    :param gaussian_ksize: The kernel size used for gaussian smoothing.
+    :param gaussian_sigma: The gaussian_sigma used for smoothing an image.
+    :return: The processed image.
+    """
+    # Convert image to gray scale for processing.
+    p = cvlib.convert_rgb2gray(image)
+
+    # Adjust the contrast
+    p = cvlib.adjust_gamma(p, gamma)
+
+    # Remove noise.
+    p = cvlib.gaussian_blur(p, gaussian_ksize, gaussian_sigma)
+
+    return p
+
+
 def adjust_threshold(i, threshold_min, rate, black_pixels, white_pixels, max_pixel_limit):
     """
     Control logic used by detect_barcode v2.
@@ -225,6 +246,78 @@ def detect_barcode_v2(image, **kwargs):
 
     print(f'----------> [END, attempt={cnt}/{kwargs["attempt_limit"]}]\n')
     return cropped, p
+
+
+def detect_barcode_v4(image, **kwargs):
+    """
+    Processes the given image to detect barcode using the parameters documented in the module section.
+    :return: The detected rectangle's coordinates.
+    """
+    max_pixel_limit = int(kwargs['max_pixel_limit'])
+    box = None
+    cnt = 0
+    # Assign current-threshold for processing with config-threshold.
+    curr_threshold = int(kwargs['min_threshold'])
+
+    pre = preprocess_image2(image, kwargs['gamma'], kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+    image_size = image.shape[0] * image.shape[1]
+    print(f'Info                : size={image_size:,}, RxC=[{pre.shape[0]:,}x{pre.shape[1]:,}], '
+          f'box-ratio-on: {kwargs["box"]}, attempt-limit: {kwargs["attempt_limit"]}, min-threshold={curr_threshold}')
+
+    p = cvlib.average_blur(pre, (9, 9))
+
+    p = cvlib.detect_gradient(p)
+
+    p = cvlib.average_blur(p, (3, 3))
+
+    p = cvlib.binarize(p, curr_threshold)
+
+    for i in range(1, int(kwargs['attempt_limit']) + 1):
+        cnt = i
+        print(f'----------> [BEGIN, attempt={cnt}]')
+
+        # Pixel-ratio checking:
+        black_pixels = imutil.pixel_percentage(p, imutil.BLACK_COLOR)
+        white_pixels = imutil.pixel_percentage(p, imutil.WHITE_COLOR)
+        if black_pixels > max_pixel_limit or white_pixels > max_pixel_limit:
+            print(
+                f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] Exceeded {max_pixel_limit:}% limit!')
+            break
+        else:
+            print(
+                f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] within {max_pixel_limit:}% limit.')
+
+        print(f'[{i}] --Morphing      : dilation:erosion=[{kwargs["dilate_iteration"]}:{kwargs["erode_iteration"]}]')
+
+        p = cvlib.morph_proportionate_close(p, kwargs["dilate_iteration"], kwargs["erode_iteration"],
+                                            kwargs['dilate_size'], kwargs['erode_size'])
+
+        vertical_se = np.ones((2, 1)).astype('uint8')
+        p = cvlib.morph_erode_ex(p, vertical_se, 2)
+
+        # p = cvlib.morph_proportionate_close(p, 2,1, 3, 2)
+        p = cvlib.morph_proportionate_close(p, 2, 1, 2, 1)
+
+        # TODO: To reconsider if needed because few parameters are not compatible.
+        # p = cvlib.morph_open(p, (45, 45))
+        # p = cvlib.morph_open(p, (15, 15))
+
+        # p = cvlib.gaussian_blur(p, kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+
+        contour = shape.find_rectangle(processed_img=p,
+                                       min_area_factor=kwargs['min_area_factor'],
+                                       cnt=cnt,
+                                       box=kwargs['box'],
+                                       draw=True,
+                                       verbose=False)
+        if contour is not None:
+            rect = cv2.minAreaRect(contour)
+            box = np.intp(cv2.boxPoints(rect))
+            # TODO: Is this break stopping anything larger? This makes more than one ROI. So, need to choose the larger??
+            break
+
+    print(f'----------> [END, attempt={cnt}/{kwargs["attempt_limit"]}]\n')
+    return box, p
 
 
 def detect_barcode_v3(image, **kwargs):
