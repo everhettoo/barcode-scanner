@@ -1,7 +1,7 @@
-pyqt6~=6.9.0
-opencv-python~=4.11.0.86
-PyQt6-sip~=13.10.0
-numpy~=2.0.2
-matplotlib~=3.9.4
-scipy~=1.13.1
-jupyterlab~=4.4.3
+pyqt6
+opencv-python
+PyQt6-sip
+numpy
+matplotlib
+scipy
+jupyterlab
