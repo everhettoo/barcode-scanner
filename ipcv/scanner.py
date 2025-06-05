@@ -22,6 +22,7 @@ import numpy as np
 from ipcv import cvlib, imutil, shape
 
 MIN_THRESHOLD_LIMIT = 220
+MAX_PIXEL_RATIO = 97
 
 calculate_threshold = lambda t, i, d: ceil(t + (t * i * d))
 
@@ -308,9 +309,11 @@ def detect_barcode_v3(image, **kwargs):
     return box, p
 
 
-def detect_barcode_v4(image, **kwargs):
+def detect_barcode_v4(image, trace=False, **kwargs):
     """
     Processes the given image to detect barcode using the parameters documented in the module section.
+    param image: The image to save.
+    param trace: If true, show the trace of the detected barcode.
     :return: The detected rectangle's coordinates.
     """
     max_pixel_limit = int(kwargs['max_pixel_limit'])
@@ -320,6 +323,9 @@ def detect_barcode_v4(image, **kwargs):
     curr_threshold = int(kwargs['min_threshold'])
 
     pre = preprocess_image2(image, kwargs['gamma'], kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+    if trace:
+        imutil.trace_image(pre, 'bc/01-prep')
+
     image_size = image.shape[0] * image.shape[1]
     print(f'Info                : size={image_size:,}, RxC=[{pre.shape[0]:,}x{pre.shape[1]:,}], '
           f'box-ratio-on: {kwargs["box"]}, attempt-limit: {kwargs["attempt_limit"]}, min-threshold={curr_threshold}')
@@ -329,8 +335,12 @@ def detect_barcode_v4(image, **kwargs):
     p = cvlib.detect_gradient(p)
 
     p = cvlib.average_blur(p, (3, 3))
+    if trace:
+        imutil.trace_image(p, 'bc/02-blur')
 
     p = cvlib.binarize(p, curr_threshold)
+    if trace:
+        imutil.trace_image(p, 'bc/03-bin')
 
     for i in range(1, int(kwargs['attempt_limit']) + 1):
         cnt = i
@@ -343,9 +353,9 @@ def detect_barcode_v4(image, **kwargs):
             print(
                 f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] Exceeded {max_pixel_limit:}% limit!')
             break
-        else:
-            print(
-                f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] within {max_pixel_limit:}% limit.')
+        # else:
+        #     print(
+        #         f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] within {max_pixel_limit:}% limit.')
 
         print(f'[{i}] --Morphing      : dilation:erosion=[{kwargs["dilate_iteration"]}:{kwargs["erode_iteration"]}]')
 
@@ -361,8 +371,9 @@ def detect_barcode_v4(image, **kwargs):
         # TODO: To reconsider if needed because few parameters are not compatible.
         # p = cvlib.morph_open(p, (45, 45))
         # p = cvlib.morph_open(p, (15, 15))
-
         # p = cvlib.gaussian_blur(p, kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+        if trace:
+            imutil.trace_image(p, 'bc/04-morp-' + str(i).zfill(2))
 
         contour = shape.find_rectangle(processed_img=p,
                                        min_area_factor=kwargs['min_area_factor'],
@@ -380,13 +391,17 @@ def detect_barcode_v4(image, **kwargs):
     return box, p
 
 
-def detect_qrcode(image, **kwargs):
+def detect_qrcode(image, trace=False, **kwargs):
     """
     Processes the given image to detect qrcode using the parameters documented in the module section.
     :param image: The image to process.
+    :param trace: If true, trace the processed image.
     :return: The detected rectangle's coordinates.
     """
     pre = preprocess_image(image, kwargs['gamma'], kwargs['gaussian_ksize'], kwargs['gaussian_sigma'])
+    if trace:
+        imutil.trace_image(pre, 'qc/01-prep')
+
     image_size = image.shape[0] * image.shape[1]
     print(f'Info                : size={image_size:,}, RxC=[{pre.shape[0]:,}x{pre.shape[1]:,}], '
           f'box-ratio-on: {kwargs["box"]}, attempt-limit: {kwargs["attempt_limit"]}')
@@ -399,11 +414,22 @@ def detect_qrcode(image, **kwargs):
     vertical = cv2.getStructuringElement(cv2.MORPH_CROSS, (1, 3))
     horizontal = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 1))
     p = binary
+    if trace:
+        imutil.trace_image(p, 'qc/02-bin')
     box = None
     cnt = 0
     for i in range(1, int(kwargs['attempt_limit']) + 1):
         cnt = i
         print(f'----------> [BEGIN, attempt={cnt}]')
+
+        # Pixel-ratio checking:
+        black_pixels = imutil.pixel_percentage(p, imutil.BLACK_COLOR)
+        white_pixels = imutil.pixel_percentage(p, imutil.WHITE_COLOR)
+        if black_pixels > MAX_PIXEL_RATIO or white_pixels > MAX_PIXEL_RATIO:
+            print(
+                f'{[i]} --Pixel-check   : [black={black_pixels:,.2f}%, white={white_pixels:,.2f}%] Exceeded {MAX_PIXEL_RATIO:}% limit!')
+            break
+
         # Dilate both ways in same ratio
         p = cvlib.morph_dilate_ex(p, vertical, 3)
         p = cvlib.morph_dilate_ex(p, horizontal, 3)
@@ -421,6 +447,8 @@ def detect_qrcode(image, **kwargs):
 
         # Close the openings.
         p = cvlib.morph_close(p, (3, 3))
+        if trace:
+            imutil.trace_image(p, 'qc/03-morp-' + str(i).zfill(2))
 
         contour = shape.find_rectangle(processed_img=p,
                                        min_area_factor=kwargs['min_area_factor'],

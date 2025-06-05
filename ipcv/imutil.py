@@ -2,9 +2,14 @@
 This module provides common required functions related to image processing.
 """
 import math
+import os
+import shutil
+import threading
 
 import cv2
 import numpy as np
+
+from ipcv import cvlib
 
 BLUE_COLOR = (0, 0, 255)
 GREEN_COLOR = (0, 255, 0)
@@ -90,3 +95,30 @@ def rectangle_coordinates(approx):
 
 def pixel_percentage(image, color):
     return np.sum(image == color) / (image.shape[0] * image.shape[1]) * 100
+
+
+def trace_image(image, name):
+    """
+    Write the given image to a folder with the thread-id name
+    :param image: The image to write
+    :param name: The name of the process.
+    """
+    try:
+        # TODO: This is caller thread-id, so no race condition for now.
+        dir_path = 'run-trace/' + str(threading.currentThread().native_id) + '/'
+        filename = name + '.png'
+        path = os.path.join(dir_path, filename)
+        cvlib.save_image(image, path)
+    except Exception as e:
+        print(f'trace_image:{e}')
+
+
+def reset_trace():
+    """
+    Removes the folder with the thread-id name.
+    """
+    dir_path = 'run-trace/' + str(threading.currentThread().native_id) + '/'
+    if os.path.exists(dir_path):
+        shutil.rmtree(dir_path)
+    os.makedirs(dir_path + '/qc')
+    os.makedirs(dir_path + '/bc')

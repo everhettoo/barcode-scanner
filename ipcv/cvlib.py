@@ -221,3 +221,12 @@ def binarize_inv(image, min_val=127):
     """
     (_, thresh) = cv2.threshold(image, min_val, 255, cv2.THRESH_BINARY_INV)
     return thresh
+
+
+def save_image(image, output_path):
+    """
+    Saves the given image to the given output path.
+    :param image: The image to save.
+    :param output_path: The output path.
+    """
+    return cv2.imwrite(output_path, image)

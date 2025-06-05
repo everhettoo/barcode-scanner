@@ -11,7 +11,8 @@ class JobController:
     This is a controller to coordinate UI and image processing tasks.
     Acknowledgement: 'No-image' was taken from "https://www.flaticon.com/free-icons/no-image", and credit to sonnycandra.
     """
-
+    # TODO: Should be configurable using config file.
+    TRACE_IMAGE = True
     NO_DISPLAY_IMG = 'resources/no-image.png'
 
     def __init__(self, device, frame_callback, trace_callback, process_callback, interval):
@@ -85,6 +86,8 @@ class JobController:
         try:
             cropped = None
             self.trace.write(f'\n[{threading.currentThread().native_id}] <<<< Processing-Start >>>>')
+            # Removes directories name with the same thread-id before writing traces.
+            imutil.reset_trace()
             b_box = self.process_barcode(img)
             q_box = self.process_qrcode(img)
 
@@ -138,7 +141,7 @@ class JobController:
         :return: Returns the coordinates of the barcode.
         """
         self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode ...')
-        box, p = scanner.detect_barcode_v4(img, **parameters.bar1d_v4_general)
+        box, p = scanner.detect_barcode_v4(img, self.TRACE_IMAGE, **parameters.bar1d_v4_general)
         if box is not None:
             self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: OK')
         else:
@@ -153,7 +156,7 @@ class JobController:
         :return: Returns the coordinates of the qrcode.
         """
         self.trace.write(f'[{threading.currentThread().native_id}] Detecting qr-code ...')
-        box, p = scanner.detect_qrcode(img, **parameters.qr_v1_general)
+        box, p = scanner.detect_qrcode(img, self.TRACE_IMAGE, **parameters.qr_v1_general)
 
         if box is not None:
             self.trace.write(f'[{threading.currentThread().native_id}] Detecting qr-code: OK')

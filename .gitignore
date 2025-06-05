@@ -3,6 +3,7 @@ corpus/
 .DS_Store
 .idea/
 tmp.data
+run-trace/
 
 __pycache__/
 *.py[cod]
