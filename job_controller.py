@@ -113,8 +113,8 @@ class JobController:
                         self.trace.write(f'[{threading.currentThread().native_id}] Decoded barcode : {code}')
                 if q_box is not None:
                     self.trace.write(f'[{threading.currentThread().native_id}] Processing detected qrcode ...')
-                    imutil.draw_bounding_box2(img, b_box, imutil.BLUE_COLOR)
-                    cropped = imutil.crop_roi2(img, b_box)
+                    imutil.draw_bounding_box2(img, q_box, imutil.BLUE_COLOR)
+                    cropped = imutil.crop_roi2(img, q_box)
                     if cropped is not None:
                         code = scanner.decode_qrcode(cropped)
                         self.trace.write(f'[{threading.currentThread().native_id}] Decoded barcode : {code}')
@@ -138,7 +138,7 @@ class JobController:
         :return: Returns the coordinates of the barcode.
         """
         self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode ...')
-        box, p = scanner.detect_barcode_v4(img, **parameters.v4_general)
+        box, p = scanner.detect_barcode_v4(img, **parameters.bar1d_v4_general)
         if box is not None:
             self.trace.write(f'[{threading.currentThread().native_id}] Detecting barcode: OK')
         else:
@@ -153,13 +153,7 @@ class JobController:
         :return: Returns the coordinates of the qrcode.
         """
         self.trace.write(f'[{threading.currentThread().native_id}] Detecting qr-code ...')
-        box = scanner.detect_qrcode(img.copy(),
-                                    gamma=0.1,
-                                    gaussian_ksize=(3, 3),
-                                    gaussian_sigma=2,
-                                    thresh_min=128,
-                                    box=True,
-                                    min_area_factor=0.02)
+        box, p = scanner.detect_qrcode(img, **parameters.qr_v1_general)
 
         if box is not None:
             self.trace.write(f'[{threading.currentThread().native_id}] Detecting qr-code: OK')
