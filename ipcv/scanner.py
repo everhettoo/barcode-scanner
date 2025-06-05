@@ -392,7 +392,9 @@ def detect_qrcode(image, **kwargs):
           f'box-ratio-on: {kwargs["box"]}, attempt-limit: {kwargs["attempt_limit"]}')
 
     # TODO: Need to move relevant binarization into cvlib.
-    binary = cv2.threshold(pre, kwargs['min_threshold'], 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    # binary = cv2.threshold(pre, kwargs['min_threshold'], 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    # binary = cv2.threshold(pre, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    binary = cv2.threshold(pre, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
 
     vertical = cv2.getStructuringElement(cv2.MORPH_CROSS, (1, 3))
     horizontal = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 1))
