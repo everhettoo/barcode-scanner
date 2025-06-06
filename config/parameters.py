@@ -144,7 +144,6 @@ The version 1 was experimented to improve qr-code detection based on segmentatio
 qr_v1_general = {'gamma': 0.1,
                  'gaussian_ksize': (3, 3),
                  'gaussian_sigma': 2,
-                 'min_threshold': 128,
                  'attempt_limit': 5,
                  'min_area_factor': 0.02,
                  'box': True}
